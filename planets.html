@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gezegen Kasesi - Three.js</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            z-index: 100;
+            display: block; /* Varsayılan olarak görünür */
+        }
+        #backButton {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 8px 15px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+            z-index: 110;
+            display: none; /* Başlangıçta gizli */
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Gezegenleri kase içinde sürükleyin. Bir gezegene çift tıklayarak uydularını görün.</div>
+    <button id="backButton">Geri Dön</button>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        // --- Gerekli Three.js Modüllerini İçe Aktarma ---
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { DragControls } from 'three/addons/controls/DragControls.js';
+        import { RGBELoader } from 'three/addons/loaders/RGBELoader.js'; // Çevre haritası için
+
+        // --- Genel Değişkenler ---
+        let scene, camera, renderer, orbitControls, dragControls;
+        let bowl, bowlBoundingBox;
+        const planets = []; // Gezegen mesh'lerini tutacak dizi
+        const draggableObjects = []; // Sürüklenilebilir nesneleri (gezegenleri) tutacak dizi
+        const planetData = [ // Gezegen bilgileri (GÜNCELLENMİŞ UYDU SAYILARI)
+            { name: 'Merkür', color: 0xaaaaaa, radius: 0.5, moons: 0 },
+            { name: 'Venüs', color: 0xd8a068, radius: 0.8, moons: 0 },
+            { name: 'Dünya', color: 0x5b9bb1, radius: 0.85, moons: 1 }, // Dünya'nın 1 uydusu var (Ay)
+            { name: 'Mars', color: 0xc1440e, radius: 0.6, moons: 2 }, // Mars'ın 2 uydusu var (Phobos, Deimos)
+            { name: 'Jüpiter', color: 0xb8a088, radius: 1.5, moons: 95 }, // Jüpiter'in 95 uydusu var (Bilinen - Nisan 2025 itibarıyla)
+            { name: 'Satürn', color: 0xe3dccb, radius: 1.3, moons: 146, hasRing: true }, // Satürn'ün 146 uydusu var (Bilinen - Nisan 2025 itibarıyla)
+            { name: 'Uranüs', color: 0xafeeee, radius: 1.1, moons: 28 }, // Uranüs'ün 28 uydusu var (Bilinen - Nisan 2025 itibarıyla - 1 yeni aday dahil)
+            { name: 'Neptün', color: 0x3f54b8, radius: 1.0, moons: 16 }  // Neptün'ün 16 uydusu var (Bilinen - Nisan 2025 itibarıyla - 2 yeni aday dahil)
+        ];        
+        let currentView = 'bowl'; // 'bowl' veya 'moons'
+        let selectedPlanet = null; // Ay görünümündeki seçili gezegen
+        const moonViewObjects = new THREE.Group(); // Ay görünümü nesnelerini gruplamak için
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let environmentMap = null; // Çevre haritası dokusu
+
+        // --- DOM Elementleri ---
+        const infoElement = document.getElementById('info');
+        const backButton = document.getElementById('backButton');
+
+        // --- Ana Fonksiyonlar ---
+
+        // Başlatma fonksiyonu
+        function init() {
+            setupScene();
+            setupCamera();
+            setupRenderer();
+            setupLights();
+            loadEnvironmentMap(() => { // Önce çevre haritasını yükle
+                createBowl();
+                createPlanets();
+                setupControls(); // Orbit ve Drag kontrolleri
+                addEventListeners();
+                scene.add(moonViewObjects); // Ay görünümü grubunu sahneye ekle (başlangıçta boş)
+                animate();
+            });
+        }
+
+        // Sahne kurulumu
+        function setupScene() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111111); // Koyu arka plan
+        }
+
+        // Kamera kurulumu
+        function setupCamera() {
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 15, 20); // Başlangıç kamera pozisyonu
+            camera.lookAt(scene.position);
+        }
+
+        // Renderer kurulumu
+        function setupRenderer() {
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.toneMapping = THREE.ACESFilmicToneMapping; // Daha iyi görünüm için tone mapping
+            renderer.toneMappingExposure = 1.0;
+            renderer.outputColorSpace = THREE.SRGBColorSpace; // Renk doğruluğu için
+            document.body.appendChild(renderer.domElement);
+        }
+
+        // Işıklandırma kurulumu
+        function setupLights() {
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Ortam ışığı
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 2.5); // Yönlü ışık
+            directionalLight.position.set(10, 20, 15);
+            directionalLight.castShadow = true; // Gölgeler (isteğe bağlı, performansı etkileyebilir)
+            scene.add(directionalLight);
+        }
+
+        // Çevre haritası yükleme (görsel kaliteyi artırır)
+        function loadEnvironmentMap(callback) {
+            const loader = new RGBELoader();
+            loader.load('https://unpkg.com/three@0.163.0/examples/textures/equirectangular/royal_esplanade_1k.hdr', (texture) => {
+                texture.mapping = THREE.EquirectangularReflectionMapping;
+                environmentMap = texture; // Küresel haritayı sakla
+                scene.environment = environmentMap; // Sahne ortamı olarak ayarla (yansımalar için)
+                // scene.background = environmentMap; // İsterseniz arka plan olarak da ayarlayabilirsiniz
+                callback(); // Yükleme tamamlandığında devam et
+            }, undefined, (error) => {
+                console.error('Çevre haritası yüklenemedi:', error);
+                callback(); // Hata olsa bile devam et
+            });
+        }
+
+
+        // Kase oluşturma (LatheGeometry kullanarak)
+        function createBowl() {
+            const points = [];
+            const segments = 32;
+            const bowlRadius = 10;
+            const bowlHeight = 5;
+
+            // Kase şeklinin yarım kesitini oluşturan noktalar
+            for (let i = 0; i <= segments / 2; i++) {
+                const angle = (i / (segments / 2)) * Math.PI / 2; // 0 to pi/2
+                const x = Math.sin(angle) * bowlRadius;
+                const y = -Math.cos(angle) * bowlHeight; // Y ekseninde aşağı doğru
+                points.push(new THREE.Vector2(x, y));
+            }
+            // Düz taban ekleyelim
+             points.unshift(new THREE.Vector2(0, -bowlHeight));
+
+            const geometry = new THREE.LatheGeometry(points, segments);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x888888, // Gri renk
+                metalness: 0.8,  // Metalik görünüm
+                roughness: 0.3, // Orta derecede pürüzlülük
+                side: THREE.DoubleSide, // İçini de görebilmek için
+                envMap: environmentMap, // Yansımalar için çevre haritası
+                envMapIntensity: 0.7
+            });
+            bowl = new THREE.Mesh(geometry, material);
+            bowl.position.y = bowlHeight; // Tabanı orijine oturtmak için yükselt
+            scene.add(bowl);
+
+             // Kase sınırlarını hesapla (yaklaşık olarak silindirik)
+            bowlBoundingBox = {
+                radius: bowlRadius * 0.95, // İçeride kalması için biraz küçültelim
+                minY: 0.1, // Tabanın biraz üzeri
+                maxY: bowlHeight * 1.5 // Kaseden biraz taşabilir
+             };
+        }
+
+        // Gezegenleri oluşturma
+        function createPlanets() {
+            planetData.forEach((data, index) => {
+                const geometry = new THREE.SphereGeometry(data.radius, 32, 32);
+                const material = new THREE.MeshStandardMaterial({
+                    color: data.color,
+                    roughness: 0.6,
+                    metalness: 0.2,
+                    envMap: environmentMap, // Yansımalar
+                    envMapIntensity: 0.5
+                });
+                const planet = new THREE.Mesh(geometry, material);
+
+                // Başlangıç pozisyonlarını kase içine rastgele ayarla
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * bowlBoundingBox.radius * 0.7; // Merkeze daha yakın başlasınlar
+                planet.position.set(
+                    Math.cos(angle) * radius,
+                    bowlBoundingBox.minY + data.radius + Math.random() * 2, // Y ekseninde rastgele yükseklik
+                    Math.sin(angle) * radius
+                );
+                planet.position.y += bowl.position.y; // Kase pozisyonunu ekle
+
+                planet.userData = data; // Gezegen verisini mesh'in userData'sına ekle
+                planet.userData.originalPosition = planet.position.clone(); // Geri dönmek için orijinal pozisyon
+
+                planets.push(planet);
+                draggableObjects.push(planet); // Sürüklenebilir nesnelere ekle
+                scene.add(planet);
+
+                // Satürn için halka ekle
+                if (data.hasRing) {
+                    const ringGeometry = new THREE.RingGeometry(data.radius * 1.3, data.radius * 2, 64);
+                    // RingGeometry x-y düzleminde oluşur, x-z düzlemine çevir
+                    const pos = ringGeometry.attributes.position;
+                    const v3 = new THREE.Vector3();
+                    for (let i = 0; i < pos.count; i++){
+                        v3.fromBufferAttribute(pos, i);
+                        pos.setXYZ(i, v3.x, v3.z, -v3.y); // Y'yi Z'ye, Z'yi -Y'ye ata
+                    }
+                    ringGeometry.attributes.position.needsUpdate = true;
+                    ringGeometry.computeVertexNormals(); // Normaları güncelle
+
+
+                    const ringMaterial = new THREE.MeshStandardMaterial({
+                         color: 0xaaa, // Gerekli Three.js Modüllerini İçe Aktarma ---a64, // Halka rengi
+                         roughness: 0.8,
+                         metalness: 0.1,
+                         side: THREE.DoubleSide, // İki taraflı görünüm
+                         transparent: true,
+                         opacity: 0.7,
+                         envMap: environmentMap,
+                         envMapIntensity: 0.3
+                     });
+                    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                    //ring.rotation.x = Math.PI / 2.5; // Hafif eğim
+                    planet.add(ring); // Halkayı gezegene alt nesne olarak ekle
+                    planet.userData.ring = ring; // Halkayı da sakla
+                }
+            });
+        }
+
+        // Kontrolleri (Orbit ve Drag) kurma
+        function setupControls() {
+            // OrbitControls (Kamera kontrolü)
+            orbitControls = new OrbitControls(camera, renderer.domElement);
+            orbitControls.enableDamping = true; // Yumuşak hareket
+            orbitControls.dampingFactor = 0.05;
+            orbitControls.target.set(0, bowl.position.y / 2, 0); // Odanoktasını kasenin ortasına ayarla
+            orbitControls.maxPolarAngle = Math.PI / 2 - 0.1; // Kameranın alta gitmesini engelle
+            orbitControls.minDistance = 5;
+            orbitControls.maxDistance = 50;
+            orbitControls.update();
+
+            // DragControls (Gezegenleri sürükleme)
+            dragControls = new DragControls(draggableObjects, camera, renderer.domElement);
+            dragControls.addEventListener('dragstart', function (event) {
+                orbitControls.enabled = false; // Sürüklerken kamera dönmesini durdur
+                event.object.material.emissive.set(0x333333); // Sürüklenen nesneyi hafif parlat
+            });
+            dragControls.addEventListener('dragend', function (event) {
+                orbitControls.enabled = true; // Sürükleme bitince kamera kontrolünü aç
+                event.object.material.emissive.set(0x000000); // Parlatmayı kaldır
+            });
+             // Drag sırasında Y eksenini sabitlemek için (isteğe bağlı)
+            // dragControls.addEventListener('drag', function (event) {
+            //    event.object.position.y = event.object.userData.originalPosition.y; // Y'yi kilitle
+            // });
+        }
+
+        // Olay dinleyicilerini ekleme
+        function addEventListeners() {
+            window.addEventListener('resize', onWindowResize);
+            renderer.domElement.addEventListener('dblclick', onDoubleClick);
+            backButton.addEventListener('click', switchToBowlView);
+        }
+
+        // --- Etkileşim Fonksiyonları ---
+
+        // Çift tıklama olayı
+        function onDoubleClick(event) {
+            if (currentView !== 'bowl') return; // Sadece kase görünümündeyken çalışsın
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(planets); // Sadece gezegenlerle kesişimi kontrol et
+
+            if (intersects.length > 0) {
+                const clickedPlanet = intersects[0].object;
+                switchToMoonView(clickedPlanet);
+            }
+        }
+
+        // Ay görünümüne geçiş
+        function switchToMoonView(planet) {
+            selectedPlanet = planet;
+            currentView = 'moons';
+
+            // Kaseyi ve diğer gezegenleri gizle
+            bowl.visible = false;
+            planets.forEach(p => {
+                if (p !== selectedPlanet) {
+                    p.visible = false;
+                }
+                if (p.userData.ring) {
+                    p.userData.ring.visible = false;
+                }
+            });
+
+            dragControls.enabled = false;
+            dragControls.deactivate();
+
+            selectedPlanet.position.set(0, 0, 0);
+            selectedPlanet.visible = true;
+            if (selectedPlanet.userData.ring) {
+                selectedPlanet.userData.ring.visible = true;
+            }
+
+            const distance = selectedPlanet.geometry.parameters.radius * 5;
+            orbitControls.target.set(0, 0, 0);
+            camera.position.set(0, distance * 0.5, distance);
+            orbitControls.minDistance = selectedPlanet.geometry.parameters.radius * 1.5;
+            orbitControls.maxDistance = distance * 5; // Daha fazla uydu sığdırmak için maxDistance'ı artırabiliriz
+            orbitControls.update();
+
+            // --- DEĞİŞİKLİK BURADA ---
+            // Uyduları oluştururken artık üst limit yok, doğrudan gezegenin verisini kullanıyoruz.
+            const moonCount = selectedPlanet.userData.moons; // Math.min(..., 15) kaldırıldı.
+            // --- DEĞİŞİKLİK SONU ---
+
+            const planetRadius = selectedPlanet.geometry.parameters.radius;
+
+            // Performans Uyarısı (Çok fazla uydu için)
+            if (moonCount > 50) {
+                console.warn(`${selectedPlanet.userData.name} için ${moonCount} uydu oluşturuluyor. Bu, performansı etkileyebilir.`);
+            }
+
+
+            for (let i = 0; i < moonCount; i++) {
+                const moonRadius = planetRadius * 0.08 * (Math.random() * 0.6 + 0.4); // Uyduları biraz daha küçük yapalım ve boyut farkını artıralım
+                const moonGeometry = new THREE.SphereGeometry(moonRadius, 8, 8); // Detayı azaltarak performansa yardımcı olabiliriz (16, 16 yerine 8, 8)
+                const moonMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xcccccc,
+                    roughness: 0.8,
+                    envMap: environmentMap,
+                    envMapIntensity: 0.3
+                });
+                const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+
+                // Daha geniş bir alana yaymak için yörünge yarıçapını artıralım
+                const orbitRadius = planetRadius * (2.5 + Math.random() * (moonCount > 10 ? 5 : 3)); // Çok uydu varsa daha geniş yaysın
+                const angle = Math.random() * Math.PI * 2;
+                // Y ekseninde daha fazla dağılım
+                const yOffset = (Math.random() - 0.5) * planetRadius * (moonCount > 10 ? 2 : 1);
+
+                moon.position.set(
+                    Math.cos(angle) * orbitRadius,
+                    yOffset,
+                    Math.sin(angle) * orbitRadius
+                );
+                moonViewObjects.add(moon);
+            }
+            moonViewObjects.visible = true;
+
+            infoElement.style.display = 'none';
+            backButton.style.display = 'block';
+        }
+
+        // Kase görünümüne geri dön
+        function switchToBowlView() {
+            if (currentView !== 'moons') return;
+            currentView = 'bowl';
+
+            // Ay görünümü nesnelerini kaldır/gizle
+            while(moonViewObjects.children.length > 0){
+                moonViewObjects.remove(moonViewObjects.children[0]);
+            }
+            moonViewObjects.visible = false;
+
+            // Kaseyi ve gezegenleri tekrar görünür yap
+            bowl.visible = true;
+            planets.forEach(p => {
+                p.visible = true;
+                p.position.copy(p.userData.originalPosition); // Orijinal pozisyonlarına döndür (veya son pozisyonda bırak?)
+                 if (p.userData.ring) {
+                    p.userData.ring.visible = true;
+                }
+            });
+
+            // Kamera hedefini ve pozisyonunu sıfırla
+             camera.position.set(0, 15, 20); // Başlangıç kamera pozisyonu
+             orbitControls.target.set(0, bowl.position.y / 2, 0); // Kase ortası
+             orbitControls.minDistance = 5;
+             orbitControls.maxDistance = 50;
+             orbitControls.update();
+
+            // Sürükleme kontrolünü tekrar etkinleştir
+            dragControls.enabled = true;
+            dragControls.activate();
+
+            selectedPlanet = null; // Seçimi temizle
+
+            // UI Güncelleme
+            infoElement.style.display = 'block'; // Bilgi metnini göster
+            backButton.style.display = 'none'; // Geri dön butonunu gizle
+        }
+
+
+        // --- Animasyon Döngüsü ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // OrbitControls güncellemesi (damping için gerekli)
+            orbitControls.update();
+
+            // Kase görünümündeyken gezegen hareketlerini yönet
+            if (currentView === 'bowl') {
+                handlePlanetMovement();
+            }
+
+             // Ay görünümündeyken uyduları döndür (isteğe bağlı basit animasyon)
+            if (currentView === 'moons' && selectedPlanet) {
+                 moonViewObjects.children.forEach((moon, index) => {
+                     // Basit yörünge dönüşü
+                     const speed = 0.005 + index * 0.0005; // Farklı hızlar
+                     const orbitRadius = moon.position.length(); // Mevcut yörünge yarıçapı
+                     const currentAngle = Math.atan2(moon.position.z, moon.position.x);
+                     moon.position.x = Math.cos(currentAngle + speed) * orbitRadius;
+                     moon.position.z = Math.sin(currentAngle + speed) * orbitRadius;
+                     // Uydunun kendi etrafında dönmesi (isteğe bağlı)
+                     // moon.rotation.y += 0.01;
+                 });
+             }
+
+            // Sahneyi render et
+            renderer.render(scene, camera);
+        }
+
+        // Gezegen hareketlerini ve sınır kontrollerini yöneten fonksiyon
+        function handlePlanetMovement() {
+            if (!bowlBoundingBox) return; // Kase sınırları henüz hesaplanmadıysa çık
+
+            const bowlCenterY = bowl.position.y;
+            const bowlFloorY = bowl.position.y + bowlBoundingBox.minY;
+
+            planets.forEach(planet => {
+                const radius = planet.geometry.parameters.radius;
+
+                // 1. Kase Sınır Kontrolü (Yatay - Silindirik)
+                const distFromCenterXZ = Math.sqrt(planet.position.x ** 2 + planet.position.z ** 2);
+                if (distFromCenterXZ + radius > bowlBoundingBox.radius) {
+                    const angle = Math.atan2(planet.position.z, planet.position.x);
+                    planet.position.x = Math.cos(angle) * (bowlBoundingBox.radius - radius);
+                    planet.position.z = Math.sin(angle) * (bowlBoundingBox.radius - radius);
+                }
+
+                // 2. Kase Sınır Kontrolü (Dikey - Taban)
+                if (planet.position.y - radius < bowlFloorY) {
+                    planet.position.y = bowlFloorY + radius;
+                }
+
+                 // 3. Yerçekimi Simülasyonu (Çok Basit) - Gezegenleri aşağı doğru iter
+                 // Not: Gerçekçi fizik için bu yetersizdir, sadece basit bir etki
+                 // planet.position.y -= 0.01; // Küçük bir düşüş ivmesi
+
+                 // 4. Basit Gezegen-Gezegen Çarpışma Kontrolü (Üst üste binmeyi engelleme)
+                 planets.forEach(otherPlanet => {
+                     if (planet === otherPlanet) return; // Kendisiyle kontrol etme
+
+                     const distance = planet.position.distanceTo(otherPlanet.position);
+                     const minDistance = radius + otherPlanet.geometry.parameters.radius;
+
+                     if (distance < minDistance) {
+                         // Çarpışma var, ayır
+                         const overlap = minDistance - distance;
+                         const direction = planet.position.clone().sub(otherPlanet.position).normalize(); // Ayırma yönü
+                         planet.position.addScaledVector(direction, overlap / 2);
+                         otherPlanet.position.addScaledVector(direction, -overlap / 2);
+
+                          // Y ekseninde de hafifçe ayırabiliriz
+                         // planet.position.y += 0.01;
+                         // otherPlanet.position.y -= 0.01;
+                     }
+                 });
+
+                 // Sürüklemeden sonra orijinal pozisyonu güncelle (opsiyonel)
+                 // planet.userData.originalPosition.copy(planet.position);
+
+            });
+        }
+
+
+        // --- Yardımcı Fonksiyonlar ---
+
+        // Pencere yeniden boyutlandırma olayı
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Uygulamayı Başlat ---
+        init();
+
+    </script>
+</body>
+</html>
