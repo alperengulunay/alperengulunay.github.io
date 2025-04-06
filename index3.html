@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alperen Gülünay - AI Engineer</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        /* --- CSS KODU BURAYA GİRİYOR --- */
+
+        /* Temel Stiller ve Değişkenler */
+        :root {
+            --primary-color: #0a192f; /* Koyu Mavi/Siyah */
+            --secondary-color: #112240; /* Biraz daha açık lacivert */
+            --accent-color: #64ffda; /* Açık Yeşil/Turkuaz Vurgu */
+            --light-text: #ccd6f6; /* Açık Gri/Mavi Yazı */
+            --dark-text: #8892b0; /* Koyu Gri Yazı */
+            --glass-bg: rgba(255, 255, 255, 0.05); /* Glassmorphism arka planı */
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --font-family: 'Poppins', sans-serif;
+            --transition-speed: 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth; /* Navigasyon için yumuşak kaydırma */
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--primary-color);
+            color: var(--light-text);
+            line-height: 1.6;
+        }
+
+        a {
+            color: var(--accent-color);
+            text-decoration: none;
+            transition: color var(--transition-speed);
+        }
+
+        a:hover {
+            color: #fff;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        ul {
+            list-style: none;
+        }
+
+        /* Glassmorphism Stili */
+        .glassmorphism {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px); /* Safari desteği */
+            border-radius: 10px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            padding: 20px; /* İçerik için boşluk */
+        }
+
+        /* Header ve Navigasyon */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            transition: background-color var(--transition-speed);
+        }
+
+        /* Header'a glassmorphism'i doğrudan uygulamak yerine nav'a uygulayalım */
+        header nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 5%; /* Yüzdelik padding ile daha esnek */
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        header .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        header nav ul {
+            display: flex;
+        }
+
+        header nav ul li {
+            margin-left: 2rem;
+        }
+
+        header nav ul li a {
+            font-weight: 400;
+            color: var(--light-text);
+            padding-bottom: 5px; /* Hover efekti için */
+            border-bottom: 2px solid transparent; /* Hover için alt çizgi */
+            transition: border-color var(--transition-speed), color var(--transition-speed);
+        }
+
+        header nav ul li a:hover,
+        header nav ul li a.active { /* Aktif link için JS ile eklenecek class */
+            color: var(--accent-color);
+            border-bottom-color: var(--accent-color);
+        }
+
+        /* Mobil Menü Butonu (Hamburger) */
+        .menu-toggle {
+            display: none; /* Varsayılan olarak gizli */
+            cursor: pointer;
+            z-index: 1001;
+        }
+
+        .menu-toggle span {
+            display: block;
+            width: 25px;
+            height: 3px;
+            background-color: var(--light-text);
+            margin: 5px 0;
+            transition: all var(--transition-speed);
+        }
+
+        /* Ana İçerik Alanları */
+        main {
+            padding-top: 80px; /* Sabit header için boşluk */
+        }
+
+        .content-section {
+            padding: 80px 10%; /* Üst/alt ve yan boşluklar */
+            max-width: 1200px; /* İçeriği ortalamak için */
+            margin: 0 auto; /* Ortalamak için */
+        }
+
+        .content-section h2 {
+            font-size: 2.5rem;
+            color: var(--accent-color);
+            margin-bottom: 40px;
+            text-align: center;
+            position: relative; /* Alt çizgi için */
+            padding-bottom: 10px;
+        }
+
+        .content-section h2::after { /* Başlık altına ince çizgi */
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background-color: var(--accent-color);
+        }
+
+        /* Hero Bölümü */
+        .hero-section {
+            min-height: calc(100vh - 80px); /* Ekran yüksekliği kadar (header hariç) */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start; /* İçeriği sola yasla */
+            padding: 0 10%;
+            text-align: left; /* Metni sola yasla */
+            background: linear-gradient(rgba(10, 25, 47, 0.8), rgba(10, 25, 47, 0.8)), url('...'); /* İsteğe bağlı arka plan */
+            background-size: cover;
+            background-position: center;
+        }
+
+        .hero-content h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem); /* Duyarlı font boyutu */
+            color: #fff;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .hero-content .subtitle {
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            color: var(--accent-color);
+            margin-bottom: 20px;
+            font-weight: 400;
+        }
+
+        .hero-content p {
+            font-size: 1.1rem;
+            color: var(--light-text);
+            max-width: 600px; /* Metin genişliğini sınırla */
+            margin-bottom: 30px;
+        }
+
+        /* Call-to-Action Butonları */
+        .cta-button {
+            display: inline-block;
+            background-color: transparent;
+            color: var(--accent-color);
+            border: 1px solid var(--accent-color);
+            padding: 12px 25px;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color var(--transition-speed), color var(--transition-speed);
+            margin-right: 15px; /* Butonlar arası boşluk */
+            margin-top: 10px; /* Küçük ekranlarda alt alta gelince boşluk */
+        }
+
+        .cta-button:hover {
+            background-color: var(--accent-color);
+            color: var(--primary-color);
+        }
+
+        .cta-button.secondary {
+            background-color: transparent;
+            color: var(--light-text);
+            border-color: var(--light-text);
+        }
+
+        .cta-button.secondary:hover {
+            background-color: var(--light-text);
+            color: var(--primary-color);
+        }
+
+        /* Hakkımda Bölümü */
+        .about-container {
+            display: flex;
+            gap: 40px;
+            align-items: flex-start; /* Metni yukarıdan başlat */
+        }
+
+        .about-image {
+            flex: 0 0 200px; /* Sabit genişlik */
+            border-radius: 50%; /* Yuvarlak resim */
+            overflow: hidden;
+            border: 3px solid var(--accent-color);
+        }
+
+        .about-image img {
+             border-radius: 50%;
+        }
+
+
+        .about-text {
+            flex: 1; /* Kalan alanı doldur */
+            padding: 30px; /* Glassmorphism padding'i yeterli değilse ekle */
+        }
+
+        .social-links {
+            margin-top: 20px;
+        }
+
+        .social-links a {
+            margin-right: 15px;
+            font-size: 1.1rem;
+            color: var(--dark-text);
+        }
+        .social-links a i {
+            margin-right: 5px;
+            color: var(--accent-color);
+        }
+
+        .social-links a:hover {
+            color: var(--accent-color);
+        }
+
+
+        /* Deneyim Bölümü (Timeline) */
+        .timeline {
+            position: relative;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .timeline::after { /* Orta çizgi */
+            content: '';
+            position: absolute;
+            width: 3px;
+            background-color: var(--accent-color);
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            margin-left: -1.5px; /* Çizgiyi ortala */
+            opacity: 0.3;
+        }
+
+        .timeline-item {
+            padding: 20px 40px;
+            position: relative;
+            background-color: inherit; /* Glassmorphism için transparan */
+            width: 50%;
+            margin-bottom: 40px; /* Öğeler arası boşluk */
+        }
+
+        /* Timeline öğelerini sola ve sağa yerleştirme */
+        .timeline-item:nth-child(odd) {
+            left: 0;
+            padding-right: 60px; /* Sağdaki çizgiye boşluk */
+            text-align: right;
+        }
+
+        .timeline-item:nth-child(even) {
+            left: 50%;
+            padding-left: 60px; /* Soldaki çizgiye boşluk */
+            text-align: left;
+        }
+
+        /* Timeline Noktaları */
+        .timeline-item::after {
+            content: '';
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            right: -8.5px; /* Noktayı çizgi üzerine getir */
+            background-color: var(--primary-color);
+            border: 3px solid var(--accent-color);
+            top: 25px;
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        .timeline-item:nth-child(even)::after {
+            left: -8.5px; /* Soldaki öğeler için nokta konumu */
+        }
+
+
+        .timeline-item h3 {
+            color: var(--accent-color);
+            margin-bottom: 5px;
+            font-size: 1.3rem;
+        }
+
+        .timeline-item .company-duration {
+            font-size: 0.9rem;
+            color: var(--dark-text);
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+
+        .timeline-item ul {
+            list-style: disc;
+            padding-left: 20px; /* Madde işaretleri için */
+            text-align: left; /* İçeriği sola yasla */
+        }
+        .timeline-item:nth-child(odd) ul {
+             padding-right: 20px; /* Sağdaki öğeler için madde işareti */
+             padding-left: 0;
+             list-style-position: inside; /* Madde işaretini içeri al */
+        }
+
+        .timeline-item li {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: var(--light-text);
+        }
+
+        /* Projeler Bölümü */
+        .project-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Duyarlı grid */
+            gap: 30px;
+        }
+
+        .project-card {
+            overflow: hidden; /* Resmin karttan taşmasını engelle */
+            transition: transform var(--transition-speed), box-shadow var(--transition-speed);
+        }
+
+        .project-card:hover {
+            transform: translateY(-10px); /* Hafif yukarı kalkma efekti */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .project-card img {
+            width: 100%;
+            height: 200px; /* Sabit yükseklik */
+            object-fit: cover; /* Resmi kırparak sığdır */
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .project-info {
+            padding: 20px;
+        }
+
+        .project-info h3 {
+            color: var(--accent-color);
+            margin-bottom: 10px;
+        }
+
+        .project-info p {
+            margin-bottom: 15px;
+            color: var(--light-text);
+            font-size: 0.95rem;
+        }
+
+        .project-info .tech-stack {
+            font-size: 0.85rem;
+            color: var(--dark-text);
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+
+        .project-link {
+            font-weight: 600;
+            display: inline-block; /* İkonun yan yana gelmesi için */
+            align-items: center;
+        }
+        .project-link i {
+            margin-left: 5px;
+            transition: transform var(--transition-speed);
+        }
+        .project-link:hover i {
+            transform: translateX(5px); /* Okun hafif sağa kayması */
+        }
+
+        /* Yetenekler Bölümü */
+        .skills-container {
+            max-width: 800px;
+            margin: 0 auto; /* Ortala */
+            padding: 30px 40px;
+        }
+
+        .skills-list {
+            display: flex;
+            flex-wrap: wrap; /* Taşanları alta at */
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .skills-list li {
+            background-color: rgba(100, 255, 218, 0.1); /* Vurgu renginin hafif tonu */
+            color: var(--accent-color);
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 0.95rem;
+            border: 1px solid rgba(100, 255, 218, 0.2);
+            transition: background-color var(--transition-speed);
+        }
+        .skills-list li:hover {
+            background-color: rgba(100, 255, 218, 0.2);
+        }
+
+        /* Özgeçmiş Bölümü */
+        .resume-section {
+            text-align: center;
+        }
+
+        .resume-section p {
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+            color: var(--dark-text);
+        }
+
+        .resume-section .cta-button i {
+            margin-left: 8px;
+        }
+
+        /* İletişim Formu */
+        .contact-form {
+            max-width: 600px;
+            margin: 0 auto; /* Formu ortala */
+            padding: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--light-text);
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            background-color: rgba(255, 255, 255, 0.05); /* Hafif transparan */
+            border: 1px solid var(--glass-border);
+            border-radius: 5px;
+            color: var(--light-text);
+            font-family: inherit; /* Ana fontu kullan */
+            font-size: 1rem;
+            transition: border-color var(--transition-speed);
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .form-group textarea {
+            resize: vertical; /* Sadece dikeyde boyutlandırma */
+        }
+
+        .contact-form button[type="submit"] {
+            width: 100%;
+            padding: 15px;
+            margin-top: 10px;
+            font-size: 1.1rem;
+        }
+
+        #form-status {
+            margin-top: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* Footer */
+        footer {
+            padding: 30px 10%;
+            text-align: center;
+            border-top: 1px solid var(--glass-border);
+            margin-top: 50px;
+            color: var(--dark-text);
+            font-size: 0.9rem;
+        }
+
+        .footer-links {
+            margin-top: 15px;
+        }
+
+        .footer-links a {
+            font-size: 1.5rem;
+            margin: 0 10px;
+            color: var(--dark-text);
+            transition: color var(--transition-speed);
+        }
+
+        .footer-links a:hover {
+            color: var(--accent-color);
+        }
+
+        /* Duyarlılık (Responsiveness) */
+        @media (max-width: 992px) {
+            .content-section h2 {
+                font-size: 2rem;
+            }
+            .about-container {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+            .about-image {
+                margin-bottom: 30px;
+                flex-basis: auto; /* Genişliği serbest bırak */
+            }
+             .about-text {
+                padding: 20px;
+            }
+            .timeline::after {
+                left: 30px; /* Çizgiyi sola al */
+            }
+            .timeline-item {
+                width: 100%;
+                padding-left: 70px; /* İçeriği sağa ittir */
+                padding-right: 25px;
+                left: 0 !important; /* Tüm öğeleri sola hizala */
+                text-align: left !important; /* Tüm metinleri sola hizala */
+            }
+             .timeline-item:nth-child(odd) {
+                padding-left: 70px;
+                padding-right: 25px;
+            }
+            .timeline-item:nth-child(even) {
+                padding-left: 70px;
+                padding-right: 25px;
+            }
+
+            .timeline-item::after {
+                left: 22px; /* Noktayı sola al */
+                right: auto;
+            }
+             .timeline-item:nth-child(odd) ul {
+                padding-left: 20px; /* Madde işaretleri */
+             }
+
+        }
+
+        @media (max-width: 768px) {
+            header nav ul {
+                display: none; /* Menüyü gizle */
+                flex-direction: column;
+                position: absolute;
+                top: 70px; /* Header yüksekliğine göre ayarla */
+                left: 0;
+                width: 100%;
+                background-color: var(--secondary-color); /* Mobil menü arka planı */
+                padding: 1rem 0;
+                border-top: 1px solid var(--glass-border);
+            }
+
+            header nav ul.active { /* JS ile eklenecek class */
+                display: flex;
+            }
+
+            header nav ul li {
+                margin: 1rem 0;
+                text-align: center;
+            }
+
+            .menu-toggle {
+                display: block; /* Hamburger menüyü göster */
+            }
+
+            /* Hamburger ikonunun 'X' ikonuna dönüşümü */
+            .menu-toggle.is-active span:nth-child(1) {
+                transform: rotate(45deg) translate(5px, 5px);
+            }
+             .menu-toggle.is-active span:nth-child(2) {
+                opacity: 0;
+            }
+             .menu-toggle.is-active span:nth-child(3) {
+                transform: rotate(-45deg) translate(7px, -6px);
+            }
+
+
+            .hero-section {
+                text-align: center;
+                align-items: center;
+                padding: 0 5%;
+            }
+            .hero-content p {
+                max-width: 90%;
+                margin-left: auto;
+                margin-right: auto;
+            }
+             .cta-button {
+                margin-bottom: 10px; /* Mobil dikeyde boşluk */
+            }
+
+            .content-section {
+                padding: 60px 5%;
+            }
+
+        }
+
+        @media (max-width: 480px) {
+            .hero-content h1 {
+                font-size: 2rem;
+            }
+            .hero-content .subtitle {
+                font-size: 1rem;
+            }
+             .content-section h2 {
+                font-size: 1.8rem;
+            }
+            .project-grid {
+                grid-template-columns: 1fr; /* Tek sütun */
+            }
+            .skills-list li {
+                font-size: 0.9rem;
+                padding: 6px 12px;
+            }
+             .contact-form {
+                padding: 25px;
+            }
+        }
+
+        /* Animasyonlar (İsteğe bağlı - Scroll ile tetiklenecek) */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* --- CSS KODU BİTİŞİ --- */
+    </style>
+</head>
+<body>
+
+    <header class="glassmorphism">
+        <nav>
+            <div class="logo">Alperen Gülünay</div>
+            <ul>
+                <li><a href="#hero">Ana Sayfa</a></li>
+                <li><a href="#about">Hakkımda</a></li>
+                <li><a href="#experience">Deneyim</a></li>
+                <li><a href="#projects">Projeler</a></li>
+                <li><a href="#skills">Yetenekler</a></li>
+                <li><a href="#contact">İletişim</a></li>
+            </ul>
+            <div class="menu-toggle" id="mobile-menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section id="hero" class="hero-section">
+            <div class="hero-content">
+                <h1>Merhaba, ben Alperen Gülünay</h1>
+                <p class="subtitle">Yapay Zeka Mühendisi | Makine Öğrenmesi | Derin Öğrenme</p>
+                <p>Karmaşık problemleri yenilikçi yapay zeka çözümleriyle çözme tutkusuyla çalışıyorum.</p>
+                <a href="#projects" class="cta-button">Projelerimi Gör</a>
+                <a href="#contact" class="cta-button secondary">İletişime Geç</a>
+            </div>
+            </section>
+
+        <section id="about" class="content-section">
+            <h2>Hakkımda</h2>
+            <div class="about-container">
+                <div class="about-image">
+                     <img src="assets/images/profile-placeholder.png" alt="Alperen Gülünay Profil Fotoğrafı">
+                </div>
+                <div class="about-text glassmorphism">
+                    <p>
+                        Yapay zeka ve makine öğrenmesi alanlarına büyük bir ilgi duyan, sonuç odaklı bir mühendisim. Veriye dayalı içgörüler üreterek ve akıllı sistemler geliştirerek değer yaratmayı hedefliyorum. Sürekli öğrenmeye ve en son teknolojileri takip etmeye inanıyorum. Takım çalışmasına yatkınım ve problem çözme becerilerimle projelerin başarılı bir şekilde tamamlanmasına katkıda bulunurum.
+                    </p>
+                    <div class="social-links">
+                        <a href="https://www.linkedin.com/in/alperengulunay/" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin"></i> LinkedIn</a>
+                        <a href="[GitHub Profil Linkiniz]" target="_blank" aria-label="GitHub"><i class="fab fa-github"></i> GitHub</a>
+                        </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="experience" class="content-section">
+            <h2>Deneyim</h2>
+            <div class="timeline">
+                <div class="timeline-item glassmorphism">
+                    <h3>Yapay Zeka Mühendisi</h3>
+                    <p class="company-duration">Teknoloji Firması A | Ocak 2022 - Şu Anda</p>
+                    <ul>
+                        <li>Doğal dil işleme modelleri geliştirildi ve optimize edildi.</li>
+                        <li>Görüntü tanıma sistemleri için derin öğrenme algoritmaları uygulandı.</li>
+                        <li>Büyük veri setleri üzerinde makine öğrenmesi modelleri eğitildi ve değerlendirildi.</li>
+                        <li>Bulut platformlarında (AWS/Azure/GCP) ML operasyonları (MLOps) süreçleri kuruldu.</li>
+                    </ul>
+                </div>
+                <div class="timeline-item glassmorphism">
+                     <h3>Makine Öğrenmesi Stajyeri</h3>
+                    <p class="company-duration">Startup B | Haziran 2021 - Aralık 2021</p>
+                    <ul>
+                        <li>Veri ön işleme ve özellik mühendisliği görevleri gerçekleştirildi.</li>
+                        <li>Tahminleyici modelleme projelerine destek verildi.</li>
+                        <li>Model performansını izlemek için gösterge tabloları oluşturuldu.</li>
+                    </ul>
+                </div>
+                </div>
+        </section>
+
+        <section id="projects" class="content-section">
+            <h2>Projeler</h2>
+            <div class="project-grid">
+                <div class="project-card glassmorphism">
+                    <img src="assets/images/project-placeholder.png" alt="Proje 1 Görseli">
+                    <div class="project-info">
+                        <h3>Proje Adı 1: Akıllı Öneri Sistemi</h3>
+                        <p>Kullanıcı davranışlarına dayalı kişiselleştirilmiş ürün önerileri sunan bir sistem.</p>
+                        <p class="tech-stack">Teknolojiler: Python, TensorFlow, Scikit-learn, Flask</p>
+                        <a href="planets.html" target="_blank" class="project-link">Detayları Gör <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                </div>
+                <div class="project-card glassmorphism">
+                     <img src="assets/images/project-placeholder.png" alt="Proje 2 Görseli">
+                    <div class="project-info">
+                        <h3>Proje Adı 2: Duygu Analizi Modeli</h3>
+                        <p>Metin verilerinden duygu durumunu (pozitif, negatif, nötr) tespit eden bir NLP modeli.</p>
+                        <p class="tech-stack">Teknolojiler: Python, PyTorch, Hugging Face Transformers</p>
+                         <a href="[Proje Linki veya GitHub Repo Linki]" target="_blank" class="project-link">Detayları Gör <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                </div>
+                </div>
+        </section>
+
+        <section id="skills" class="content-section">
+            <h2>Yetenekler</h2>
+            <div class="skills-container glassmorphism">
+                <ul class="skills-list">
+                    <li>Python</li>
+                    <li>TensorFlow</li>
+                    <li>PyTorch</li>
+                    <li>Scikit-learn</li>
+                    <li>Pandas & NumPy</li>
+                    <li>SQL</li>
+                    <li>Doğal Dil İşleme (NLP)</li>
+                    <li>Bilgisayarlı Görü (Computer Vision)</li>
+                    <li>Derin Öğrenme</li>
+                    <li>Makine Öğrenmesi</li>
+                    <li>Docker</li>
+                    <li>Git</li>
+                    <li>AWS / Azure / GCP (Temel Bilgi)</li>
+                    </ul>
+            </div>
+        </section>
+
+        <section id="resume" class="content-section resume-section">
+            <h2>Özgeçmiş</h2>
+            <p>Detaylı özgeçmişimi aşağıdaki butondan indirebilirsiniz.</p>
+            <a href="assets/resume.pdf" download="Alperen_Gülünay_Resume.pdf" class="cta-button">Özgeçmişi İndir <i class="fas fa-download"></i></a>
+        </section>
+
+        <section id="contact" class="content-section">
+            <h2>İletişim</h2>
+            <p>Benimle iletişime geçmek için aşağıdaki formu doldurabilirsiniz.</p>
+            <form id="contact-form" class="contact-form glassmorphism">
+                 <div class="form-group">
+                    <label for="name">Adınız:</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">E-posta Adresiniz:</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="message">Mesajınız:</label>
+                    <textarea id="message" name="message" rows="5" required></textarea>
+                </div>
+                <button type="submit" class="cta-button">Gönder</button>
+            </form>
+             <p id="form-status"></p> </section>
+    </main>
+
+    <footer>
+        <p>&copy; <span id="current-year"></span> Alperen Gülünay. Tüm hakları saklıdır.</p>
+        <div class="footer-links">
+             <a href="https://www.linkedin.com/in/alperengulunay/" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+             <a href="[GitHub Profil Linkiniz]" target="_blank" aria-label="GitHub"><i class="fab fa-github"></i></a>
+        </div>
+    </footer>
+
+    <script>
+        // --- JAVASCRIPT KODU BURAYA GİRİYOR ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // Mobil Menü Toggle
+            const mobileMenu = document.getElementById('mobile-menu');
+            const navLinks = document.querySelector('header nav ul');
+
+            mobileMenu.addEventListener('click', () => {
+                mobileMenu.classList.toggle('is-active');
+                navLinks.classList.toggle('active');
+            });
+
+            // Menü linkine tıklayınca mobil menüyü kapat
+            navLinks.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (navLinks.classList.contains('active')) {
+                        mobileMenu.classList.remove('is-active');
+                        navLinks.classList.remove('active');
+                    }
+                });
+            });
+
+            // Yıl bilgisini otomatik güncelle (Footer için)
+            const currentYear = new Date().getFullYear();
+            const yearSpan = document.getElementById('current-year');
+            if (yearSpan) {
+                yearSpan.textContent = currentYear;
+            }
+
+            // İsteğe Bağlı: Scroll ile içeriğin görünmesi (Fade-in efekti)
+            const sections = document.querySelectorAll('.content-section, .hero-section'); // Animasyon uygulanacak bölümler
+
+            const observerOptions = {
+                root: null, // viewport
+                rootMargin: '0px',
+                threshold: 0.1 // Bölümün %10'u görününce tetikle
+            };
+
+            const observerCallback = (entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        // CSS'te tanımlanan 'visible' class'ını ekle
+                        entry.target.classList.add('visible');
+                        // Animasyon bir kere çalıştıktan sonra gözlemciyi kaldırabiliriz (isteğe bağlı)
+                        // observer.unobserve(entry.target);
+                    } else {
+                         // Ekrandan çıkınca animasyonu sıfırlamak isterseniz:
+                         // entry.target.classList.remove('visible');
+                    }
+                });
+            };
+
+            const sectionObserver = new IntersectionObserver(observerCallback, observerOptions);
+
+            sections.forEach(section => {
+                section.classList.add('fade-in'); // Başlangıçta gizle ve animasyona hazırla
+                sectionObserver.observe(section);
+            });
+
+             // İsteğe Bağlı: Aktif Navigasyon Linkini Belirleme
+            const navItems = document.querySelectorAll('header nav ul li a');
+            const allSections = document.querySelectorAll('main section'); // main içindeki tüm sectionları al
+
+            window.addEventListener('scroll', () => {
+                let currentSectionId = '';
+
+                allSections.forEach(sec => {
+                    const sectionTop = sec.offsetTop - 150; // Header yüksekliği + biraz pay
+                    const sectionHeight = sec.offsetHeight;
+                     // Scroll pozisyonu bölümün içindeyse
+                    if (pageYOffset >= sectionTop && pageYOffset < sectionTop + sectionHeight) {
+                       currentSectionId = sec.getAttribute('id');
+                    }
+                });
+
+                 // Eğer hiçbir section aktif değilse (en tepedeyse) hero'yu aktif yap
+                if (!currentSectionId && pageYOffset < 300) {
+                    currentSectionId = 'hero';
+                }
+
+
+                navItems.forEach(link => {
+                    link.classList.remove('active');
+                    // Linkin href'i (#about) ile section id'si (about) eşleşiyorsa active class'ı ekle
+                    if (link.getAttribute('href') === `#${currentSectionId}`) {
+                        link.classList.add('active');
+                    }
+                });
+            });
+
+
+            // İletişim Formu Gönderimi (Basit İstemci Tarafı)
+            const contactForm = document.getElementById('contact-form');
+            const formStatus = document.getElementById('form-status');
+
+            if (contactForm) {
+                contactForm.addEventListener('submit', (e) => {
+                    e.preventDefault(); // Formun varsayılan gönderimini engelle
+
+                    // Gerçek bir uygulamada burada form verilerini bir backend'e göndermeniz gerekir.
+                    // Örneğin: fetch() API'si ile bir sunucu endpoint'ine POST isteği yapılır.
+                    // Şimdilik sadece bir başarı mesajı gösterelim:
+
+                    formStatus.textContent = 'Mesajınız gönderiliyor...';
+                    formStatus.style.color = 'var(--accent-color)';
+
+                    // Simülasyon için kısa bir bekleme
+                    setTimeout(() => {
+                        formStatus.textContent = 'Mesajınız başarıyla gönderildi! Teşekkürler.';
+                        formStatus.style.color = 'var(--accent-color)';
+                        contactForm.reset(); // Formu temizle
+
+                        // Mesajı bir süre sonra kaldır
+                        setTimeout(() => {
+                            formStatus.textContent = '';
+                        }, 5000);
+
+                    }, 1500);
+                });
+            }
+
+        });
+
+        // --- JAVASCRIPT KODU BİTİŞİ ---
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turn-Based Snake Duel</title>
+    <style>
+        /* CSS styles */
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            font-family: sans-serif;
+            margin: 0;
+        }
+
+        .game-container {
+            border: 2px solid #333;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            position: relative; /* Needed for absolute positioning */
+            padding: 10px; /* Add padding for info */
+        }
+
+        #game-info {
+            display: flex;
+            justify-content: space-around; /* Space out scores and turn */
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        #turn-indicator {
+            text-align: center; /* Centered text */
+        }
+        .player1-color { color: #4CAF50; }
+        .player2-color { color: #03A9F4; } /* Light Blue */
+
+
+        #game-board {
+            display: grid;
+            /* Grid columns/rows will be set by JS */
+            width: 400px; /* 10 cells * 40px */
+            height: 400px; /* 10 cells * 40px */
+            border: 1px solid #ccc;
+            position: relative; /* Context for arrow positioning */
+            background-color: #fafafa; /* Light background for board */
+        }
+
+        .cell {
+            width: 40px; /* Cell size */
+            height: 40px; /* Cell size */
+            border: 1px solid #eee; /* Light grid lines */
+            box-sizing: border-box; /* Include border in size */
+            position: relative; /* For positioning arrows inside */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Player 1 Snake (Green) */
+        .snake-head-p1 {
+            background-color: #4CAF50; /* Darker green */
+            border: 2px solid #388E3C; /* Darker border */
+            border-radius: 20%;
+            z-index: 5; /* Above body */
+            position:relative;
+        }
+        .snake-body-p1 {
+            background-color: #8BC34A; /* Lighter green */
+            border-radius: 10%;
+             z-index: 4;
+             position:relative;
+        }
+
+        /* Player 2 Snake (Blue) */
+         .snake-head-p2 {
+            background-color: #03A9F4; /* Light Blue */
+            border: 2px solid #0288D1; /* Darker Blue border */
+            border-radius: 20%;
+            z-index: 5; /* Above body */
+            position:relative;
+        }
+        .snake-body-p2 {
+            background-color: #4FC3F7; /* Lighter Blue */
+            border-radius: 10%;
+            z-index: 4;
+            position:relative;
+        }
+
+        /* Shared Prize */
+        .prize-container { /* Use a container for centering */
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: absolute; /* Take up cell space */
+            top: 0; left: 0;
+        }
+        .prize {
+            background-color: #f44336; /* Red */
+            border-radius: 50%;
+            width: 70%;
+            height: 70%;
+             z-index: 3;
+        }
+
+        /* Shared Arrow Style */
+        .move-arrow {
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            background-color: rgba(100, 100, 100, 0.6); /* Semi-transparent grey */
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            border: none;
+            border-radius: 15%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10; /* Ensure arrows are on top */
+            transition: background-color 0.2s ease;
+        }
+        .move-arrow:hover {
+            background-color: rgba(50, 50, 50, 0.8);
+        }
+
+        /* Game Over Overlay */
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(50, 50, 50, 0.9);
+            color: white;
+            padding: 30px 40px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 1.5em;
+            z-index: 20; /* Above everything */
+        }
+         #game-over #winner-message {
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        #game-over button {
+            display: block;
+            margin: 15px auto 0;
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Turn-Based Snake Duel</h1>
+    <div class="game-container">
+        <div id="game-info">
+            <span id="score1-info">P1 Score: <span id="score1" class="player1-color">0</span></span>
+            <span id="turn-indicator"></span>
+            <span id="score2-info">P2 Score: <span id="score2" class="player2-color">0</span></span>
+        </div>
+        <div id="game-board">
+            </div>
+        <div id="game-over" class="hidden">
+             <div id="winner-message">Game Over!</div>
+            <button id="restart-button">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const boardElement = document.getElementById('game-board');
+            const score1Element = document.getElementById('score1');
+            const score2Element = document.getElementById('score2');
+            const turnIndicatorElement = document.getElementById('turn-indicator');
+            const gameOverElement = document.getElementById('game-over');
+            const winnerMessageElement = document.getElementById('winner-message');
+            const restartButton = document.getElementById('restart-button');
+
+            const gridSize = 10;
+            const cellSize = 40; // Must match CSS .cell width/height
+
+            // --- Game State ---
+            let snake1 = []; // Player 1 (Green)
+            let snake2 = []; // Player 2 (Blue)
+            let prize = { x: -1, y: -1 };
+            let score1 = 0;
+            let score2 = 0;
+            let gameOver = false;
+            let winner = null; // null, 'P1', 'P2', 'Draw'
+            let boardCells = []; // 2D array to store cell elements
+
+            let currentPlayerTurn = 1; // 1 or 2, who is choosing?
+            let player1ChosenMove = null; // Direction string or null
+            let player2ChosenMove = null; // Direction string or null
+
+            // --- Initialization ---
+            function initGame() {
+                // Start positions (opposite corners)
+                snake1 = [{ x: 1, y: 1 }];
+                snake2 = [{ x: gridSize - 2, y: gridSize - 2 }];
+
+                score1 = 0;
+                score2 = 0;
+                gameOver = false;
+                winner = null;
+                player1ChosenMove = null;
+                player2ChosenMove = null;
+                currentPlayerTurn = 1; // P1 starts choosing
+
+                gameOverElement.classList.add('hidden');
+                score1Element.textContent = score1;
+                score2Element.textContent = score2;
+
+                boardElement.innerHTML = ''; // Clear previous board
+                boardCells = [];
+                createBoard();
+                placePrize(); // Place initial prize
+                renderBoard(); // Render initial state
+                promptNextChoice(); // Start the turn sequence
+            }
+
+            function createBoard() {
+                boardElement.style.gridTemplateColumns = `repeat(${gridSize}, ${cellSize}px)`;
+                boardElement.style.gridTemplateRows = `repeat(${gridSize}, ${cellSize}px)`;
+                for (let y = 0; y < gridSize; y++) {
+                    boardCells[y] = [];
+                    for (let x = 0; x < gridSize; x++) {
+                        const cell = document.createElement('div');
+                        cell.classList.add('cell');
+                        cell.dataset.x = x;
+                        cell.dataset.y = y;
+                        boardElement.appendChild(cell);
+                        boardCells[y][x] = cell;
+                    }
+                }
+            }
+
+            function getCellElement(x, y) {
+                if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) return null;
+                return boardCells[y]?.[x] ?? null; // Optional chaining for safety
+            }
+
+            // --- Rendering ---
+             function renderBoard() {
+                 // Clear previous state more carefully
+                 boardCells.flat().forEach(cell => {
+                    if(cell) {
+                        // Remove specific classes instead of resetting className
+                        cell.classList.remove(
+                            'snake-head-p1', 'snake-body-p1',
+                            'snake-head-p2', 'snake-body-p2'
+                        );
+                        // Remove only prize container if it exists
+                         const prizeContainer = cell.querySelector('.prize-container');
+                        if (prizeContainer) {
+                            cell.removeChild(prizeContainer);
+                        }
+                        // Remove arrows if any left (should be cleared by logic, but safer)
+                         const arrow = cell.querySelector('.move-arrow');
+                         if(arrow) cell.removeChild(arrow);
+                    }
+                });
+
+                 // Render Snake 1 (Green)
+                 snake1.forEach((segment, index) => {
+                     const cell = getCellElement(segment.x, segment.y);
+                     if (cell) {
+                         cell.classList.add(index === 0 ? 'snake-head-p1' : 'snake-body-p1');
+                     }
+                 });
+
+                 // Render Snake 2 (Blue)
+                 snake2.forEach((segment, index) => {
+                     const cell = getCellElement(segment.x, segment.y);
+                     if (cell) {
+                         // Important: Check if P1 head is already here (avoid visual overlap issues if they land on same spot temporarily)
+                         if (!cell.classList.contains('snake-head-p1')) {
+                             cell.classList.add(index === 0 ? 'snake-head-p2' : 'snake-body-p2');
+                         } else if (index !== 0) { // Allow P2 body to be 'under' P1 head if needed
+                             cell.classList.add('snake-body-p2');
+                         }
+                     }
+                 });
+
+
+                 // Render Prize
+                 const prizeCell = getCellElement(prize.x, prize.y);
+                 if (prizeCell && !prizeCell.querySelector('.prize-container')) { // Only add if not present
+                     const prizeContainer = document.createElement('div');
+                     prizeContainer.classList.add('prize-container');
+                     const prizeDiv = document.createElement('div');
+                     prizeDiv.classList.add('prize');
+                     prizeContainer.appendChild(prizeDiv);
+                     prizeCell.appendChild(prizeContainer);
+                 }
+             }
+
+
+            // --- Prize Logic ---
+            function placePrize() {
+                let newPrizeX, newPrizeY;
+                let collision;
+                const allSnakeSegments = [...snake1, ...snake2]; // Combine both snakes
+
+                do {
+                    collision = false;
+                    newPrizeX = Math.floor(Math.random() * gridSize);
+                    newPrizeY = Math.floor(Math.random() * gridSize);
+                    // Check if the random spot is occupied by ANY snake segment
+                    for (const segment of allSnakeSegments) {
+                        if (segment.x === newPrizeX && segment.y === newPrizeY) {
+                            collision = true;
+                            break;
+                        }
+                    }
+                } while (collision);
+
+                // Remove old prize visuals before setting new coords
+                const oldPrizeCell = getCellElement(prize.x, prize.y);
+                if (oldPrizeCell) {
+                     const oldPrizeContainer = oldPrizeCell.querySelector('.prize-container');
+                     if(oldPrizeContainer) oldPrizeCell.removeChild(oldPrizeContainer);
+                }
+
+                prize = { x: newPrizeX, y: newPrizeY };
+                // Re-rendering will place the new prize visual
+            }
+
+
+            // --- Turn Management ---
+
+            function promptNextChoice() {
+                if (gameOver) return;
+
+                // Update turn indicator
+                 const playerName = currentPlayerTurn === 1 ? "P1 (Green)" : "P2 (Blue)";
+                 const playerColorClass = currentPlayerTurn === 1 ? "player1-color" : "player2-color";
+                 turnIndicatorElement.innerHTML = `Choose Move: <span class="${playerColorClass}">${playerName}</span>`;
+
+
+                clearArrows();
+                showPossibleMoves(currentPlayerTurn);
+            }
+
+            function clearArrows() {
+                 boardCells.flat().forEach(cell => {
+                     if (cell) {
+                         const arrow = cell.querySelector('.move-arrow');
+                         if (arrow) cell.removeChild(arrow);
+                     }
+                 });
+            }
+
+            function showPossibleMoves(playerNum) {
+                const snake = (playerNum === 1) ? snake1 : snake2;
+                const otherSnake = (playerNum === 1) ? snake2 : snake1;
+                const head = snake[0];
+
+                if (!head) return; // Safety check if snake is somehow empty
+
+                const possibleMoves = [
+                    { dx: 0, dy: -1, direction: 'up' }, { dx: 0, dy: 1, direction: 'down' },
+                    { dx: -1, dy: 0, direction: 'left' }, { dx: 1, dy: 0, direction: 'right' }
+                ];
+
+                let validMoveFound = false;
+
+                possibleMoves.forEach(move => {
+                    const nextX = head.x + move.dx;
+                    const nextY = head.y + move.dy;
+
+                    // 1. Check Walls
+                    if (nextX < 0 || nextX >= gridSize || nextY < 0 || nextY >= gridSize) {
+                        return; // Wall collision
+                    }
+
+                    // 2. Check Self Collision (excluding tail tip)
+                    for (let i = 0; i < snake.length - 1; i++) {
+                        if (snake[i].x === nextX && snake[i].y === nextY) {
+                            return; // Self collision
+                        }
+                    }
+
+                    // 3. Check Other Snake Collision (Body only for now, head-head handled later)
+                    for (let i = 0; i < otherSnake.length; i++) {
+                         if (otherSnake[i].x === nextX && otherSnake[i].y === nextY) {
+                             // Allow moving onto the other snake's *tail tip* only if it's going to move
+                             // Simpler rule: just disallow moving onto any part of the other snake FOR NOW
+                             // Collision resolution happens *after* both moves are chosen.
+                             // For arrow display, just ensure the target square isn't currently occupied by the *other* snake.
+                             // This prevents choosing a move that *looks* like an immediate body collision.
+                              return; // Collision with other snake's current position
+                         }
+                    }
+
+
+                    // If valid, add arrow
+                    const targetCell = getCellElement(nextX, nextY);
+                    if (targetCell) {
+                        validMoveFound = true;
+                        const arrowButton = document.createElement('button');
+                        arrowButton.classList.add('move-arrow');
+                        arrowButton.textContent = getArrowSymbol(move.direction);
+                        arrowButton.onclick = () => handleChoice(playerNum, move.direction);
+                        if (!targetCell.querySelector('.move-arrow')) { // Avoid duplicate arrows
+                            targetCell.appendChild(arrowButton);
+                        }
+                    }
+                });
+
+                 // Handle case where player is trapped
+                 if (!validMoveFound && snake.length > 0) {
+                      // Player has no valid moves, the other player wins.
+                      const winnerPlayer = playerNum === 1 ? 'P2' : 'P1';
+                      handleGameOver(winnerPlayer);
+                 }
+            }
+
+             function getArrowSymbol(direction) {
+                 switch (direction) {
+                     case 'up': return '↑';
+                     case 'down': return '↓';
+                     case 'left': return '←';
+                     case 'right': return '→';
+                     default: return '?';
+                 }
+             }
+
+            function handleChoice(playerNum, direction) {
+                if (gameOver) return;
+
+                if (playerNum === 1) {
+                    player1ChosenMove = direction;
+                } else {
+                    player2ChosenMove = direction;
+                }
+
+                clearArrows(); // Clear arrows after selection
+
+                // Check if both players have made their choice
+                if (player1ChosenMove && player2ChosenMove) {
+                    turnIndicatorElement.textContent = "Executing Moves...";
+                    // Use setTimeout to allow the "Executing Moves..." message to render
+                    setTimeout(executeTurn, 100); // Short delay before executing
+                } else {
+                    // Switch to the other player and prompt for their choice
+                    currentPlayerTurn = (playerNum === 1) ? 2 : 1;
+                    promptNextChoice();
+                }
+            }
+
+            // --- Turn Execution & Collision ---
+            function executeTurn() {
+                if (gameOver) return; // Should not happen, but safety check
+
+                const head1 = snake1[0];
+                const head2 = snake2[0];
+
+                // Calculate next positions
+                const nextHead1 = calculateNextPosition(head1, player1ChosenMove);
+                const nextHead2 = calculateNextPosition(head2, player2ChosenMove);
+
+                // --- Collision Detection ---
+                let collisionResult = checkCollisions(nextHead1, nextHead2);
+
+                if (collisionResult.isGameOver) {
+                    handleGameOver(collisionResult.winner);
+                    return;
+                }
+
+                // --- Movement ---
+                const atePrize1 = (nextHead1.x === prize.x && nextHead1.y === prize.y);
+                const atePrize2 = (nextHead2.x === prize.x && nextHead2.y === prize.y);
+                let prizeEaten = false;
+
+                // Move Snake 1
+                snake1.unshift(nextHead1);
+                if (atePrize1) {
+                    score1++;
+                    score1Element.textContent = score1;
+                    prizeEaten = true;
+                    // Don't pop tail
+                } else {
+                    snake1.pop();
+                }
+
+                 // Move Snake 2
+                 // Prevent P2 eating if P1 already ate it on the same turn
+                 snake2.unshift(nextHead2);
+                 if (atePrize2 && !atePrize1) { // P2 eats only if P1 didn't
+                    score2++;
+                    score2Element.textContent = score2;
+                    prizeEaten = true;
+                     // Don't pop tail
+                 } else {
+                     snake2.pop();
+                 }
+
+
+                // Place new prize if needed
+                if (prizeEaten) {
+                    placePrize();
+                }
+
+                // Reset for next turn choice phase
+                player1ChosenMove = null;
+                player2ChosenMove = null;
+                currentPlayerTurn = 1; // P1 starts choosing again
+
+                renderBoard(); // Update visuals
+                promptNextChoice(); // Start next selection round
+            }
+
+            function calculateNextPosition(head, move) {
+                let next = { ...head };
+                switch (move) {
+                    case 'up': next.y--; break;
+                    case 'down': next.y++; break;
+                    case 'left': next.x--; break;
+                    case 'right': next.x++; break;
+                }
+                return next;
+            }
+
+            function checkCollisions(nextHead1, nextHead2) {
+                 let p1WallCollision = nextHead1.x < 0 || nextHead1.x >= gridSize || nextHead1.y < 0 || nextHead1.y >= gridSize;
+                 let p2WallCollision = nextHead2.x < 0 || nextHead2.x >= gridSize || nextHead2.y < 0 || nextHead2.y >= gridSize;
+
+                 // Check wall collisions first
+                 if (p1WallCollision && p2WallCollision) return { isGameOver: true, winner: 'Draw' };
+                 if (p1WallCollision) return { isGameOver: true, winner: 'P2' };
+                 if (p2WallCollision) return { isGameOver: true, winner: 'P1' };
+
+                 let headOnCollision = nextHead1.x === nextHead2.x && nextHead1.y === nextHead2.y;
+                 if (headOnCollision) return { isGameOver: true, winner: 'Draw' };
+
+                 // Check self collisions (against the snake's state *before* moving)
+                 let p1SelfCollision = false;
+                 for (let i = 0; i < snake1.length; i++) { // Check all segments
+                     if (snake1[i].x === nextHead1.x && snake1[i].y === nextHead1.y) {
+                         p1SelfCollision = true; break;
+                     }
+                 }
+                 let p2SelfCollision = false;
+                 for (let i = 0; i < snake2.length; i++) { // Check all segments
+                     if (snake2[i].x === nextHead2.x && snake2[i].y === nextHead2.y) {
+                         p2SelfCollision = true; break;
+                     }
+                 }
+
+                 if (p1SelfCollision && p2SelfCollision) return { isGameOver: true, winner: 'Draw' };
+                 if (p1SelfCollision) return { isGameOver: true, winner: 'P2' };
+                 if (p2SelfCollision) return { isGameOver: true, winner: 'P1' };
+
+
+                 // Check head-to-body collisions
+                 let p1HitP2Body = false;
+                 for (let i = 0; i < snake2.length; i++) {
+                     if (snake2[i].x === nextHead1.x && snake2[i].y === nextHead1.y) {
+                         p1HitP2Body = true; break;
+                     }
+                 }
+                let p2HitP1Body = false;
+                 for (let i = 0; i < snake1.length; i++) {
+                     if (snake1[i].x === nextHead2.x && snake1[i].y === nextHead2.y) {
+                         p2HitP1Body = true; break;
+                     }
+                 }
+
+
+                 if (p1HitP2Body && p2HitP1Body) return { isGameOver: true, winner: 'Draw' }; // Both hit bodies simultaneously
+                 if (p1HitP2Body) return { isGameOver: true, winner: 'P2' }; // P1 ran into P2's body
+                 if (p2HitP1Body) return { isGameOver: true, winner: 'P1' }; // P2 ran into P1's body
+
+                 // If none of the above, no game-ending collision this turn
+                 return { isGameOver: false, winner: null };
+            }
+
+
+            // --- Game Over ---
+            function handleGameOver(winnerResult) {
+                 if (gameOver) return; // Prevent multiple calls
+
+                 gameOver = true;
+                 winner = winnerResult;
+                 clearArrows(); // Clear any lingering arrows
+
+                 let message = "Game Over! ";
+                 if (winner === 'Draw') {
+                     message += "It's a Draw!";
+                 } else {
+                     const winnerName = winner === 'P1' ? 'Player 1 (Green)' : 'Player 2 (Blue)';
+                     const winnerColorClass = winner === 'P1' ? 'player1-color' : 'player2-color';
+                     message += `<span class="${winnerColorClass}">${winnerName}</span> Wins!`;
+                 }
+                 winnerMessageElement.innerHTML = message;
+                 gameOverElement.classList.remove('hidden');
+                 turnIndicatorElement.textContent = "Game Ended"; // Update final status
+            }
+
+            // --- Event Listeners ---
+            restartButton.addEventListener('click', initGame);
+
+            // --- Start Game ---
+            initGame();
+        });
+    </script>
+    
+</body>
+</html>
