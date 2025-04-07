@@ -6,15 +6,31 @@
     <title>Turn-Based Snake Duel</title>
     <style>
         /* CSS styles */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%; /* Ensure body takes full height */
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+
         body {
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: center; /* Center vertically */
             align-items: center;
             min-height: 100vh;
             background-color: #f0f0f0;
             font-family: sans-serif;
-            margin: 0;
+        }
+
+        .game-wrapper {
+            /* Wrapper to help with centering and scaling */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            padding: 10px; /* Add some padding around the container */
+            box-sizing: border-box;
         }
 
         .game-container {
@@ -22,21 +38,34 @@
             background-color: #fff;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             position: relative; /* Needed for absolute positioning */
-            padding: 10px; /* Add padding for info */
+            padding: 10px;
+            /* Ensure scaling happens from the center */
+            transform-origin: center top;
+             /* Transition scaling smoothly */
+            transition: transform 0.3s ease-in-out;
+            max-width: 424px; /* Board width (400) + padding (2*10) + border (2*2) */
+            box-sizing: border-box;
         }
 
         #game-info {
             display: flex;
-            justify-content: space-around; /* Space out scores and turn */
+            flex-wrap: wrap; /* Allow wrapping on small screens */
+            justify-content: space-around;
+            gap: 10px; /* Add gap between items */
             padding-bottom: 10px;
             margin-bottom: 10px;
             border-bottom: 1px solid #eee;
-            font-size: 1.1em;
+            font-size: 1.0em; /* Slightly smaller font */
             font-weight: bold;
+            text-align: center;
         }
         #turn-indicator {
-            text-align: center; /* Centered text */
+            width: 100%; /* Take full width when wrapping */
+            order: 1; /* Ensure it appears first when wrapped */
         }
+        #score1-info { order: 2; }
+        #score2-info { order: 3; }
+
         .player1-color { color: #4CAF50; }
         .player2-color { color: #03A9F4; } /* Light Blue */
 
@@ -49,6 +78,7 @@
             border: 1px solid #ccc;
             position: relative; /* Context for arrow positioning */
             background-color: #fafafa; /* Light background for board */
+            margin: 0 auto; /* Center board if container is wider */
         }
 
         .cell {
@@ -60,6 +90,17 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            overflow: hidden; /* Hide overflow from elements */
+        }
+
+        /* Shared Snake Styles */
+        .snake-head, .snake-body {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            box-sizing: border-box;
         }
 
         /* Player 1 Snake (Green) */
@@ -68,13 +109,11 @@
             border: 2px solid #388E3C; /* Darker border */
             border-radius: 20%;
             z-index: 5; /* Above body */
-            position:relative;
         }
         .snake-body-p1 {
             background-color: #8BC34A; /* Lighter green */
             border-radius: 10%;
              z-index: 4;
-             position:relative;
         }
 
         /* Player 2 Snake (Blue) */
@@ -83,13 +122,11 @@
             border: 2px solid #0288D1; /* Darker Blue border */
             border-radius: 20%;
             z-index: 5; /* Above body */
-            position:relative;
         }
         .snake-body-p2 {
             background-color: #4FC3F7; /* Lighter Blue */
             border-radius: 10%;
             z-index: 4;
-            position:relative;
         }
 
         /* Shared Prize */
@@ -113,20 +150,27 @@
         /* Shared Arrow Style */
         .move-arrow {
             position: absolute;
-            width: 80%;
-            height: 80%;
+            /* Make arrows slightly smaller than cell */
+            width: 30px;
+            height: 30px;
             background-color: rgba(100, 100, 100, 0.6); /* Semi-transparent grey */
             color: white;
-            font-size: 24px;
+            font-size: 18px; /* Smaller font size */
+            line-height: 30px; /* Center text vertically */
+            text-align: center;
             font-weight: bold;
             border: none;
             border-radius: 15%;
             cursor: pointer;
-            display: flex;
+            display: flex; /* Use flex for centering too */
             justify-content: center;
             align-items: center;
             z-index: 10; /* Ensure arrows are on top */
             transition: background-color 0.2s ease;
+            /* Position arrows within the cell - adjust if needed */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
         .move-arrow:hover {
             background-color: rgba(50, 50, 50, 0.8);
@@ -140,45 +184,76 @@
             transform: translate(-50%, -50%);
             background-color: rgba(50, 50, 50, 0.9);
             color: white;
-            padding: 30px 40px;
+            padding: 20px 30px; /* Reduced padding */
             border-radius: 10px;
             text-align: center;
-            font-size: 1.5em;
+            font-size: 1.2em; /* Smaller font */
             z-index: 20; /* Above everything */
+            width: 80%; /* Make overlay responsive */
+            box-sizing: border-box;
         }
          #game-over #winner-message {
             margin-bottom: 15px;
             font-weight: bold;
-        }
+         }
         #game-over button {
             display: block;
             margin: 15px auto 0;
-            padding: 10px 20px;
-            font-size: 1em;
+            padding: 8px 15px; /* Smaller button padding */
+            font-size: 0.9em; /* Smaller button font */
             cursor: pointer;
         }
 
         .hidden {
             display: none;
         }
+
+        /* --- Mobile Responsiveness --- */
+        @media (max-width: 450px) { /* Adjust breakpoint as needed */
+             .game-container {
+                /* Scale down the entire container */
+                 transform: scale(0.85); /* Adjust scale factor as needed */
+                 /* Adjust top margin if needed due to scaling */
+                 margin-top: -30px;
+             }
+             h1 {
+                 font-size: 1.5em; /* Reduce heading size */
+             }
+             #game-info {
+                 font-size: 0.9em; /* Further reduce info font */
+             }
+         }
+         @media (max-width: 380px) {
+             .game-container {
+                 transform: scale(0.75);
+                 margin-top: -50px;
+             }
+              h1 {
+                 font-size: 1.3em;
+             }
+         }
+
+
     </style>
 </head>
 <body>
-
     <h1>Turn-Based Snake Duel</h1>
-    <div class="game-container">
-        <div id="game-info">
-            <span id="score1-info">P1 Score: <span id="score1" class="player1-color">0</span></span>
-            <span id="turn-indicator"></span>
-            <span id="score2-info">P2 Score: <span id="score2" class="player2-color">0</span></span>
-        </div>
-        <div id="game-board">
+    <div class="game-wrapper">
+        <div class="game-container">
+            <div id="game-info">
+                <span id="score1-info">P1 Score: <span id="score1" class="player1-color">0</span></span>
+                <span id="turn-indicator"></span>
+                <span id="score2-info">P2 Score: <span id="score2" class="player2-color">0</span></span>
             </div>
-        <div id="game-over" class="hidden">
-             <div id="winner-message">Game Over!</div>
-            <button id="restart-button">Play Again</button>
+            <div id="game-board">
+                </div>
+            <div id="game-over" class="hidden">
+                 <div id="winner-message">Game Over!</div>
+                <button id="restart-button">Play Again</button>
+            </div>
         </div>
     </div>
+    <p style="text-align: center; margin-top: 15px; font-size: 0.9em;">Controls: Click arrows or use WASD for the active player.</p>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -191,7 +266,8 @@
             const restartButton = document.getElementById('restart-button');
 
             const gridSize = 10;
-            const cellSize = 40; // Must match CSS .cell width/height
+             // Cell size primarily defined by CSS, keep this for reference if needed later
+            const cellSizeReference = 40;
 
             // --- Game State ---
             let snake1 = []; // Player 1 (Green)
@@ -209,9 +285,25 @@
 
             // --- Initialization ---
             function initGame() {
-                // Start positions (opposite corners)
-                snake1 = [{ x: 1, y: 1 }];
-                snake2 = [{ x: gridSize - 2, y: gridSize - 2 }];
+                // --- UPDATE: Initial snake setup (length 4, curled) ---
+                // Player 1 (Green) starts near top-left, curling towards corner
+                // Head at (2,2), body goes left, then up
+                snake1 = [
+                    { x: 1, y: 1 }, // Head
+                    { x: 1, y: 0 }, // Body 1
+                    { x: 0, y: 0 }, // Body 2
+                    { x: 0, y: 1 }  // Body 3 (Tail Tip)
+                ];
+
+                // Player 2 (Blue) starts near bottom-right, curling towards corner
+                // Head at (7,7), body goes right, then down
+                snake2 = [
+                    { x: 8, y: 8 }, // Head
+                    { x: 8, y: 9 }, // Body 1
+                    { x: 9, y: 9 }, // Body 2
+                    { x: 9, y: 8 }  // Body 3 (Tail Tip)
+                ];
+                // --- End Update ---
 
                 score1 = 0;
                 score2 = 0;
@@ -234,10 +326,12 @@
             }
 
             function createBoard() {
-                boardElement.style.gridTemplateColumns = `repeat(${gridSize}, ${cellSize}px)`;
-                boardElement.style.gridTemplateRows = `repeat(${gridSize}, ${cellSize}px)`;
+                 // Use CSS defined size, JS just creates elements
+                boardElement.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+                boardElement.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
+                boardCells = Array(gridSize).fill(null).map(() => Array(gridSize).fill(null)); // Initialize 2D array
+
                 for (let y = 0; y < gridSize; y++) {
-                    boardCells[y] = [];
                     for (let x = 0; x < gridSize; x++) {
                         const cell = document.createElement('div');
                         cell.classList.add('cell');
@@ -249,29 +343,20 @@
                 }
             }
 
+
             function getCellElement(x, y) {
                 if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) return null;
                 return boardCells[y]?.[x] ?? null; // Optional chaining for safety
             }
 
-            // --- Rendering ---
+             // --- Rendering ---
              function renderBoard() {
                  // Clear previous state more carefully
                  boardCells.flat().forEach(cell => {
                     if(cell) {
-                        // Remove specific classes instead of resetting className
-                        cell.classList.remove(
-                            'snake-head-p1', 'snake-body-p1',
-                            'snake-head-p2', 'snake-body-p2'
-                        );
-                        // Remove only prize container if it exists
-                         const prizeContainer = cell.querySelector('.prize-container');
-                        if (prizeContainer) {
-                            cell.removeChild(prizeContainer);
-                        }
-                        // Remove arrows if any left (should be cleared by logic, but safer)
-                         const arrow = cell.querySelector('.move-arrow');
-                         if(arrow) cell.removeChild(arrow);
+                        // Remove only snake/prize/arrow elements, preserve .cell class
+                         cell.innerHTML = ''; // Clear all children quickly
+                        cell.className = 'cell'; // Reset classes efficiently
                     }
                 });
 
@@ -279,7 +364,10 @@
                  snake1.forEach((segment, index) => {
                      const cell = getCellElement(segment.x, segment.y);
                      if (cell) {
-                         cell.classList.add(index === 0 ? 'snake-head-p1' : 'snake-body-p1');
+                        const snakePart = document.createElement('div');
+                        snakePart.classList.add(index === 0 ? 'snake-head-p1' : 'snake-body-p1');
+                        snakePart.classList.add('snake-head'); // Add generic class too
+                        cell.appendChild(snakePart);
                      }
                  });
 
@@ -287,12 +375,14 @@
                  snake2.forEach((segment, index) => {
                      const cell = getCellElement(segment.x, segment.y);
                      if (cell) {
-                         // Important: Check if P1 head is already here (avoid visual overlap issues if they land on same spot temporarily)
-                         if (!cell.classList.contains('snake-head-p1')) {
-                             cell.classList.add(index === 0 ? 'snake-head-p2' : 'snake-body-p2');
-                         } else if (index !== 0) { // Allow P2 body to be 'under' P1 head if needed
-                             cell.classList.add('snake-body-p2');
+                         const snakePart = document.createElement('div');
+                         snakePart.classList.add(index === 0 ? 'snake-head-p2' : 'snake-body-p2');
+                         snakePart.classList.add('snake-head'); // Add generic class too
+                         // Check if P1 head is already here visually - P2 appears 'under'
+                         if (cell.querySelector('.snake-head-p1')) {
+                            snakePart.style.zIndex = '4'; // Lower z-index if P1 head is here
                          }
+                         cell.appendChild(snakePart);
                      }
                  });
 
@@ -329,14 +419,9 @@
                     }
                 } while (collision);
 
-                // Remove old prize visuals before setting new coords
-                const oldPrizeCell = getCellElement(prize.x, prize.y);
-                if (oldPrizeCell) {
-                     const oldPrizeContainer = oldPrizeCell.querySelector('.prize-container');
-                     if(oldPrizeContainer) oldPrizeCell.removeChild(oldPrizeContainer);
-                }
-
+                // Update prize coordinates
                 prize = { x: newPrizeX, y: newPrizeY };
+
                 // Re-rendering will place the new prize visual
             }
 
@@ -370,42 +455,38 @@
                 const otherSnake = (playerNum === 1) ? snake2 : snake1;
                 const head = snake[0];
 
-                if (!head) return; // Safety check if snake is somehow empty
+                if (!head) return; // Safety check
 
-                const possibleMoves = [
-                    { dx: 0, dy: -1, direction: 'up' }, { dx: 0, dy: 1, direction: 'down' },
-                    { dx: -1, dy: 0, direction: 'left' }, { dx: 1, dy: 0, direction: 'right' }
-                ];
-
+                const possibleDirections = ['up', 'down', 'left', 'right'];
                 let validMoveFound = false;
 
-                possibleMoves.forEach(move => {
+                possibleDirections.forEach(direction => {
+                    const move = getDirectionDelta(direction);
                     const nextX = head.x + move.dx;
                     const nextY = head.y + move.dy;
 
+                    // --- Check Validity ---
                     // 1. Check Walls
                     if (nextX < 0 || nextX >= gridSize || nextY < 0 || nextY >= gridSize) {
-                        return; // Wall collision
+                        return;
                     }
 
-                    // 2. Check Self Collision (excluding tail tip)
-                    for (let i = 0; i < snake.length - 1; i++) {
-                        if (snake[i].x === nextX && snake[i].y === nextY) {
-                            return; // Self collision
+                    // 2. Check Self Collision (excluding tail tip, only check if snake > 1)
+                     if (snake.length > 1) {
+                        for (let i = 0; i < snake.length - 1; i++) { // Check up to second-to-last segment
+                             if (snake[i].x === nextX && snake[i].y === nextY) {
+                                 return; // Collision with own body (non-tail)
+                             }
                         }
                     }
 
-                    // 3. Check Other Snake Collision (Body only for now, head-head handled later)
+                    // 3. Check Other Snake Collision (current body)
                     for (let i = 0; i < otherSnake.length; i++) {
                          if (otherSnake[i].x === nextX && otherSnake[i].y === nextY) {
-                             // Allow moving onto the other snake's *tail tip* only if it's going to move
-                             // Simpler rule: just disallow moving onto any part of the other snake FOR NOW
-                             // Collision resolution happens *after* both moves are chosen.
-                             // For arrow display, just ensure the target square isn't currently occupied by the *other* snake.
-                             // This prevents choosing a move that *looks* like an immediate body collision.
-                              return; // Collision with other snake's current position
+                             return; // Collision with other snake's current position
                          }
                     }
+                    // --- End Check Validity ---
 
 
                     // If valid, add arrow
@@ -414,8 +495,9 @@
                         validMoveFound = true;
                         const arrowButton = document.createElement('button');
                         arrowButton.classList.add('move-arrow');
-                        arrowButton.textContent = getArrowSymbol(move.direction);
-                        arrowButton.onclick = () => handleChoice(playerNum, move.direction);
+                        arrowButton.textContent = getArrowSymbol(direction);
+                        arrowButton.dataset.direction = direction; // Store direction for keyboard check
+                        arrowButton.onclick = () => handleChoice(playerNum, direction);
                         if (!targetCell.querySelector('.move-arrow')) { // Avoid duplicate arrows
                             targetCell.appendChild(arrowButton);
                         }
@@ -426,10 +508,20 @@
                  if (!validMoveFound && snake.length > 0) {
                       // Player has no valid moves, the other player wins.
                       const winnerPlayer = playerNum === 1 ? 'P2' : 'P1';
-                      handleGameOver(winnerPlayer);
+                       // Use setTimeout to prevent state update issues if called rapidly
+                      setTimeout(() => handleGameOver(winnerPlayer), 0);
                  }
             }
 
+             function getDirectionDelta(direction) {
+                 switch (direction) {
+                    case 'up':    return { dx: 0, dy: -1 };
+                    case 'down':  return { dx: 0, dy: 1 };
+                    case 'left':  return { dx: -1, dy: 0 };
+                    case 'right': return { dx: 1, dy: 0 };
+                    default:      return { dx: 0, dy: 0 };
+                 }
+             }
              function getArrowSymbol(direction) {
                  switch (direction) {
                      case 'up': return '↑';
@@ -441,7 +533,14 @@
              }
 
             function handleChoice(playerNum, direction) {
-                if (gameOver) return;
+                 // Ignore if choice already made this turn or game over
+                if (gameOver || (playerNum === 1 && player1ChosenMove) || (playerNum === 2 && player2ChosenMove)) {
+                    return;
+                 }
+                 // Ensure it's the correct player's turn to choose
+                 if (playerNum !== currentPlayerTurn) {
+                     return;
+                 }
 
                 if (playerNum === 1) {
                     player1ChosenMove = direction;
@@ -454,8 +553,7 @@
                 // Check if both players have made their choice
                 if (player1ChosenMove && player2ChosenMove) {
                     turnIndicatorElement.textContent = "Executing Moves...";
-                    // Use setTimeout to allow the "Executing Moves..." message to render
-                    setTimeout(executeTurn, 100); // Short delay before executing
+                    setTimeout(executeTurn, 50); // Short delay for visual feedback
                 } else {
                     // Switch to the other player and prompt for their choice
                     currentPlayerTurn = (playerNum === 1) ? 2 : 1;
@@ -465,7 +563,7 @@
 
             // --- Turn Execution & Collision ---
             function executeTurn() {
-                if (gameOver) return; // Should not happen, but safety check
+                if (gameOver) return;
 
                 const head1 = snake1[0];
                 const head2 = snake2[0];
@@ -478,7 +576,8 @@
                 let collisionResult = checkCollisions(nextHead1, nextHead2);
 
                 if (collisionResult.isGameOver) {
-                    handleGameOver(collisionResult.winner);
+                     // Use setTimeout to ensure rendering happens before alert/game over logic if needed
+                     setTimeout(() => handleGameOver(collisionResult.winner), 0);
                     return;
                 }
 
@@ -493,19 +592,16 @@
                     score1++;
                     score1Element.textContent = score1;
                     prizeEaten = true;
-                    // Don't pop tail
                 } else {
                     snake1.pop();
                 }
 
                  // Move Snake 2
-                 // Prevent P2 eating if P1 already ate it on the same turn
                  snake2.unshift(nextHead2);
                  if (atePrize2 && !atePrize1) { // P2 eats only if P1 didn't
                     score2++;
                     score2Element.textContent = score2;
                     prizeEaten = true;
-                     // Don't pop tail
                  } else {
                      snake2.pop();
                  }
@@ -527,67 +623,52 @@
 
             function calculateNextPosition(head, move) {
                 let next = { ...head };
-                switch (move) {
-                    case 'up': next.y--; break;
-                    case 'down': next.y++; break;
-                    case 'left': next.x--; break;
-                    case 'right': next.x++; break;
-                }
+                const delta = getDirectionDelta(move);
+                next.x += delta.dx;
+                next.y += delta.dy;
                 return next;
             }
 
             function checkCollisions(nextHead1, nextHead2) {
-                 let p1WallCollision = nextHead1.x < 0 || nextHead1.x >= gridSize || nextHead1.y < 0 || nextHead1.y >= gridSize;
-                 let p2WallCollision = nextHead2.x < 0 || nextHead2.x >= gridSize || nextHead2.y < 0 || nextHead2.y >= gridSize;
+                 let p1Wall = nextHead1.x < 0 || nextHead1.x >= gridSize || nextHead1.y < 0 || nextHead1.y >= gridSize;
+                 let p2Wall = nextHead2.x < 0 || nextHead2.x >= gridSize || nextHead2.y < 0 || nextHead2.y >= gridSize;
 
-                 // Check wall collisions first
-                 if (p1WallCollision && p2WallCollision) return { isGameOver: true, winner: 'Draw' };
-                 if (p1WallCollision) return { isGameOver: true, winner: 'P2' };
-                 if (p2WallCollision) return { isGameOver: true, winner: 'P1' };
+                 if (p1Wall && p2Wall) return { isGameOver: true, winner: 'Draw' };
+                 if (p1Wall) return { isGameOver: true, winner: 'P2' };
+                 if (p2Wall) return { isGameOver: true, winner: 'P1' };
 
-                 let headOnCollision = nextHead1.x === nextHead2.x && nextHead1.y === nextHead2.y;
-                 if (headOnCollision) return { isGameOver: true, winner: 'Draw' };
+                 let headOn = nextHead1.x === nextHead2.x && nextHead1.y === nextHead2.y;
+                 if (headOn) return { isGameOver: true, winner: 'Draw' };
 
-                 // Check self collisions (against the snake's state *before* moving)
-                 let p1SelfCollision = false;
-                 for (let i = 0; i < snake1.length; i++) { // Check all segments
-                     if (snake1[i].x === nextHead1.x && snake1[i].y === nextHead1.y) {
-                         p1SelfCollision = true; break;
-                     }
+                 // Check self collisions (check against snake *before* unshift/pop)
+                 let p1Self = false;
+                 for (let i = 0; i < snake1.length; i++) {
+                     if (snake1[i].x === nextHead1.x && snake1[i].y === nextHead1.y) { p1Self = true; break; }
                  }
-                 let p2SelfCollision = false;
-                 for (let i = 0; i < snake2.length; i++) { // Check all segments
-                     if (snake2[i].x === nextHead2.x && snake2[i].y === nextHead2.y) {
-                         p2SelfCollision = true; break;
-                     }
+                 let p2Self = false;
+                 for (let i = 0; i < snake2.length; i++) {
+                     if (snake2[i].x === nextHead2.x && snake2[i].y === nextHead2.y) { p2Self = true; break; }
                  }
 
-                 if (p1SelfCollision && p2SelfCollision) return { isGameOver: true, winner: 'Draw' };
-                 if (p1SelfCollision) return { isGameOver: true, winner: 'P2' };
-                 if (p2SelfCollision) return { isGameOver: true, winner: 'P1' };
+                 if (p1Self && p2Self) return { isGameOver: true, winner: 'Draw' };
+                 if (p1Self) return { isGameOver: true, winner: 'P2' };
+                 if (p2Self) return { isGameOver: true, winner: 'P1' };
 
-
-                 // Check head-to-body collisions
+                 // Check head-to-body (check against snake *before* unshift/pop)
                  let p1HitP2Body = false;
                  for (let i = 0; i < snake2.length; i++) {
-                     if (snake2[i].x === nextHead1.x && snake2[i].y === nextHead1.y) {
-                         p1HitP2Body = true; break;
-                     }
+                     if (snake2[i].x === nextHead1.x && snake2[i].y === nextHead1.y) { p1HitP2Body = true; break; }
                  }
                 let p2HitP1Body = false;
                  for (let i = 0; i < snake1.length; i++) {
-                     if (snake1[i].x === nextHead2.x && snake1[i].y === nextHead2.y) {
-                         p2HitP1Body = true; break;
-                     }
+                     if (snake1[i].x === nextHead2.x && snake1[i].y === nextHead2.y) { p2HitP1Body = true; break; }
                  }
 
+                 if (p1HitP2Body && p2HitP1Body) return { isGameOver: true, winner: 'Draw' };
+                 if (p1HitP2Body) return { isGameOver: true, winner: 'P2' };
+                 if (p2HitP1Body) return { isGameOver: true, winner: 'P1' };
 
-                 if (p1HitP2Body && p2HitP1Body) return { isGameOver: true, winner: 'Draw' }; // Both hit bodies simultaneously
-                 if (p1HitP2Body) return { isGameOver: true, winner: 'P2' }; // P1 ran into P2's body
-                 if (p2HitP1Body) return { isGameOver: true, winner: 'P1' }; // P2 ran into P1's body
-
-                 // If none of the above, no game-ending collision this turn
-                 return { isGameOver: false, winner: null };
+                 return { isGameOver: false, winner: null }; // No collision
             }
 
 
@@ -612,13 +693,55 @@
                  turnIndicatorElement.textContent = "Game Ended"; // Update final status
             }
 
+            // --- UPDATE: Keyboard Input Handling ---
+            function handleKeyPress(event) {
+                if (gameOver) {
+                    // Optional: Allow Enter key to restart
+                    if (event.key === 'Enter') {
+                        initGame();
+                    }
+                    return;
+                }
+
+                // Map WASD keys to directions
+                let direction = null;
+                switch (event.key.toLowerCase()) {
+                    case 'w': direction = 'up'; break;
+                    case 'a': direction = 'left'; break;
+                    case 's': direction = 'down'; break;
+                    case 'd': direction = 'right'; break;
+                    default: return; // Ignore other keys
+                }
+
+                // Check if this move is currently available for the active player
+                const availableArrows = boardElement.querySelectorAll('.move-arrow');
+                let isValidKeyboardMove = false;
+                availableArrows.forEach(arrow => {
+                    if (arrow.dataset.direction === direction) {
+                        isValidKeyboardMove = true;
+                    }
+                });
+
+                if (isValidKeyboardMove) {
+                    // Prevent default browser action for WASD keys if needed
+                    // event.preventDefault();
+                    // Trigger the choice for the current player
+                    handleChoice(currentPlayerTurn, direction);
+                }
+            }
+            // --- End Update ---
+
             // --- Event Listeners ---
             restartButton.addEventListener('click', initGame);
+            // --- UPDATE: Add keyboard listener ---
+            document.addEventListener('keydown', handleKeyPress);
+            // --- End Update ---
+
 
             // --- Start Game ---
             initGame();
         });
     </script>
-    
+
 </body>
 </html>
