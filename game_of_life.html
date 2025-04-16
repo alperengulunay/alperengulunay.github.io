@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conway's Game of Life</title>
+    <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAB1JREFUOE9jZKAQMFKon2F4hAb4gKn8EBEAMfkBC8B+7fUAAAAASUVORK5CYII=" type="image/png">
+    <style>
+        :root {
+            --cell-size-desktop: 15px;
+            --cell-size-mobile: 12px;
+            --grid-gap: 1px;
+            --color-alive: #333;
+            --color-dead: #f0f0f0;
+            --color-grid: #ccc;
+            --color-overlay-bg: rgba(0, 0, 0, 0.8);
+            --color-overlay-text: #fff;
+            --color-button-bg: #4CAF50;
+            --color-button-text: white;
+            --control-bar-height: 60px;
+            --control-bar-width-desktop: 150px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: sans-serif;
+            background-color: #e0e0e0;
+            overflow: hidden; /* Prevent scrollbars during overlay */
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Overlay Styles */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--color-overlay-bg);
+            color: var(--color-overlay-text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+        }
+
+        .overlay--hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .overlay__content {
+            background-color: rgba(50, 50, 50, 0.9);
+            padding: 30px 40px;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            position: relative;
+        }
+
+        .overlay__slide {
+            display: none; /* Hidden by default */
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .overlay__slide--active {
+            display: block; /* Show active slide */
+        }
+
+        .overlay__slide h2 {
+            margin-bottom: 15px;
+            color: var(--color-button-bg);
+            text-align: center;
+        }
+
+        .overlay__slide p {
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .overlay__illustration {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin-bottom: 25px;
+            font-size: 0.9em;
+        }
+
+        .overlay__illustration-item {
+             text-align: center;
+        }
+
+        .overlay__illustration-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 20px);
+            grid-template-rows: repeat(3, 20px);
+            gap: 2px;
+            border: 1px solid #666;
+            margin: 5px auto 10px; /* Center the grid */
+            width: calc(3 * 20px + 2 * 2px); /* Calculate width based on cells and gaps */
+            height: calc(3 * 20px + 2 * 2px); /* Calculate height based on cells and gaps */
+        }
+
+        .overlay__illustration-cell {
+            background-color: var(--color-dead);
+        }
+
+        .overlay__illustration-cell--alive {
+            background-color: var(--color-alive);
+        }
+
+        .overlay__nav {
+            text-align: right;
+            margin-top: 20px;
+        }
+
+        .overlay__next {
+            background-color: var(--color-button-bg);
+            color: var(--color-button-text);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s ease;
+        }
+
+        .overlay__next:hover {
+            background-color: #45a049;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Workspace Styles */
+        .workspace {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            max-width: 95vw;
+            max-height: 95vh;
+            opacity: 0; /* Hidden initially */
+            transition: opacity 0.5s ease-in 0.5s; /* Fade in after overlay fades out */
+        }
+
+        .workspace--visible {
+             opacity: 1;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: row; /* Default for desktop */
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        #game-grid {
+            border: 1px solid var(--color-grid);
+            cursor: pointer;
+            /* Dimensions set by JS */
+        }
+
+        /* Controls Styles */
+        .controls {
+            display: flex;
+            flex-direction: column; /* Default for mobile */
+            gap: 10px;
+            background-color: #f8f8f8;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .controls__button,
+        .controls__select,
+        .controls__slider-container label,
+        .controls__slider-container input {
+            display: block; /* Ensure they take full width in column layout */
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            text-align: center;
+            border: 1px solid #ccc;
+        }
+
+        .controls__button {
+            background-color: #555;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .controls__button:hover {
+            background-color: #333;
+        }
+
+        .controls__button--start { background-color: var(--color-button-bg); }
+        .controls__button--start:hover { background-color: #45a049; }
+
+        .controls__button--stop { background-color: #f44336; }
+        .controls__button--stop:hover { background-color: #da190b; }
+
+        .controls__button--clear { background-color: #ff9800; }
+        .controls__button--clear:hover { background-color: #e68a00; }
+
+        .controls__button--random { background-color: #2196F3; }
+        .controls__button--random:hover { background-color: #0b7dda; }
+
+        .controls__select {
+            cursor: pointer;
+            background-color: #fff;
+        }
+
+        .controls__slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .controls__slider-container label {
+            font-weight: bold;
+            background-color: transparent;
+            border: none;
+            padding-bottom: 0;
+        }
+
+        .controls__slider {
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+            border-radius: 4px;
+        }
+
+        .controls__slider:hover {
+            opacity: 1;
+        }
+
+        .controls__slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #555;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .controls__slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #555;
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .game-container {
+                flex-direction: column; /* Stack grid and controls vertically */
+                align-items: center;
+            }
+            .controls {
+                 width: 90%; /* Make controls wider on small screens */
+                 max-width: 300px; /* But not too wide */
+            }
+        }
+
+        @media (min-width: 769px) {
+             .controls {
+                flex-direction: column; /* Keep controls vertical beside grid */
+                width: var(--control-bar-width-desktop);
+             }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="intro-overlay" class="overlay">
+        <div class="overlay__content">
+            <div class="overlay__slide overlay__slide--active" data-slide="1">
+                <h2>Welcome to Conway's Game of Life!</h2>
+                <p>This is a zero-player game, meaning its evolution is determined by its initial state, requiring no further input. You create an initial configuration and watch how it evolves.</p>
+                <div class="overlay__illustration">
+                     <div class="overlay__illustration-item">
+                        <span>Living Cell</span>
+                        <div class="overlay__illustration-grid">
+                            <div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div>
+                            <div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell"></div>
+                            <div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div>
+                        </div>
+                     </div>
+                      <div class="overlay__illustration-item">
+                        <span>Dead Cell</span>
+                         <div class="overlay__illustration-grid">
+                            <div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div>
+                            <div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div>
+                            <div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div>
+                         </div>
+                      </div>
+                </div>
+                 <p>The game is played on a grid of cells, each of which can be either <strong>alive</strong> (black) or <strong>dead</strong> (white).</p>
+            </div>
+
+            <div class="overlay__slide" data-slide="2">
+                <h2>Rule 1: Survival</h2>
+                <p>Any <strong>live</strong> cell with <strong>two</strong> or <strong>three</strong> live neighbours survives to the next generation.</p>
+                 <div class="overlay__illustration">
+                     <div class="overlay__illustration-item">
+                        <span>Before (2 neighbours) -> Survives</span>
+                        <div class="overlay__illustration-grid">
+                            <div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div>
+                            <div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell"></div>
+                            <div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div>
+                        </div>
+                     </div>
+                      <div class="overlay__illustration-item">
+                        <span>Before (3 neighbours) -> Survives</span>
+                         <div class="overlay__illustration-grid">
+                            <div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell"></div>
+                            <div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell"></div>
+                            <div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div>
+                         </div>
+                      </div>
+                </div>
+                <p>(Neighbours are the eight cells directly or diagonally adjacent.)</p>
+            </div>
+
+            <div class="overlay__slide" data-slide="3">
+                <h2>Rule 2: Death</h2>
+                <p>Any <strong>live</strong> cell with <strong>fewer than two</strong> live neighbours (underpopulation) or <strong>more than three</strong> live neighbours (overpopulation) <strong>dies</strong>.</p>
+                 <div class="overlay__illustration">
+                     <div class="overlay__illustration-item">
+                        <span>Before (1 neighbour) -> Dies</span>
+                        <div class="overlay__illustration-grid">
+                            <div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div>
+                            <div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell"></div>
+                            <div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div>
+                        </div>
+                     </div>
+                      <div class="overlay__illustration-item">
+                        <span>Before (4 neighbours) -> Dies</span>
+                         <div class="overlay__illustration-grid">
+                            <div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell"></div>
+                            <div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell"></div>
+                            <div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div>
+                         </div>
+                      </div>
+                </div>
+            </div>
+
+            <div class="overlay__slide" data-slide="4">
+                <h2>Rule 3: Birth</h2>
+                <p>Any <strong>dead</strong> cell with <strong>exactly three</strong> live neighbours becomes a <strong>live</strong> cell (reproduction).</p>
+                <div class="overlay__illustration">
+                     <div class="overlay__illustration-item">
+                        <span>Before (3 neighbours) -> Becomes Alive</span>
+                        <div class="overlay__illustration-grid">
+                            <div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell"></div>
+                            <div class="overlay__illustration-cell overlay__illustration-cell--alive"></div><div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div>
+                             <div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div><div class="overlay__illustration-cell"></div>
+                        </div>
+                     </div>
+                 </div>
+                 <p>Click the grid to toggle cells, use the controls to run the simulation, and experiment with patterns!</p>
+            </div>
+
+            <div class="overlay__nav">
+                <button id="overlay-next-btn" class="overlay__next">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <main id="workspace" class="workspace">
+        <div class="game-container">
+             <canvas id="game-grid"></canvas>
+            <div class="controls">
+                <button id="start-stop-btn" class="controls__button controls__button--start">Start</button>
+                <button id="clear-btn" class="controls__button controls__button--clear">Clear</button>
+                <button id="random-btn" class="controls__button controls__button--random">Random</button>
+
+                <select id="shape-select" class="controls__select">
+                    <option value="">Draw Manually</option>
+                    <option value="glider">Glider</option>
+                    <option value="small_exploder">Small Exploder</option>
+                    <option value="lwss">Lightweight Spaceship (LWSS)</option>
+                    <option value="gosper_gun">Gosper Glider Gun</option>
+                     </select>
+
+                <div class="controls__slider-container">
+                     <label for="speed-slider">Speed (<span id="speed-value">10</span> fps)</label>
+                     <input type="range" id="speed-slider" class="controls__slider" min="2" max="60" value="10">
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Constants and State ---
+            const DESKTOP_COLS = 40;
+            const DESKTOP_ROWS = 40;
+            const MOBILE_COLS = 25;
+            const MOBILE_ROWS = 25;
+            const CELL_SIZE_DESKTOP = 15;
+            const CELL_SIZE_MOBILE = 12;
+            const GRID_GAP = 1;
+            const COLOR_ALIVE = '#333';
+            const COLOR_DEAD = '#f0f0f0';
+            const COLOR_GRID = '#ccc';
+            const RANDOM_DENSITY = 0.3; // 30%
+            const MIN_SPEED = 2;
+            const MAX_SPEED = 60;
+            const INITIAL_SPEED = 10;
+
+            let gridWidth, gridHeight, cellSize;
+            let grid = [];
+            let buffer = []; // For double buffering
+            let isRunning = false;
+            let currentSpeed = INITIAL_SPEED; // fps
+            let animationFrameId = null;
+            let lastFrameTime = 0;
+            let selectedShape = ''; // To store the key of the shape to stamp
+            let currentOverlaySlide = 1;
+            const totalOverlaySlides = 4;
+
+            // --- Shape Patterns ---
+            // Stored as arrays of [row, col] offsets from the top-left corner
+            const shapes = {
+                glider: [[0, 1], [1, 2], [2, 0], [2, 1], [2, 2]],
+                small_exploder: [[0, 1], [1, 0], [1, 1], [1, 2], [2, 0], [2, 2], [3, 1]],
+                lwss: [[0, 1], [0, 2], [0, 3], [0, 4], [1, 0], [1, 4], [2, 4], [3, 0], [3, 3]], // Rotated 90 deg for easier stamping
+                 gosper_gun: [
+                    [4, 0], [4, 1], [5, 0], [5, 1], // Block 1
+                    [2, 12], [2, 13], [3, 11], [3, 15], [4, 10], [4, 16], [5, 10], [5, 14], [5, 16], [5, 17], [6, 10], [6, 16], [7, 11], [7, 15], [8, 12], [8, 13], // Center part
+                    [0, 24], [1, 22], [1, 24], [2, 20], [2, 21], [3, 20], [3, 21], [4, 20], [4, 21], [5, 22], [5, 24], [6, 24], // Right part
+                    [2, 34], [2, 35], [3, 34], [3, 35] // Block 2
+                ]
+            };
+
+
+            // --- DOM Elements ---
+            const canvas = document.getElementById('game-grid');
+            const ctx = canvas.getContext('2d');
+            const startStopBtn = document.getElementById('start-stop-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const randomBtn = document.getElementById('random-btn');
+            const shapeSelect = document.getElementById('shape-select');
+            const speedSlider = document.getElementById('speed-slider');
+            const speedValueSpan = document.getElementById('speed-value');
+            const introOverlay = document.getElementById('intro-overlay');
+            const overlayNextBtn = document.getElementById('overlay-next-btn');
+            const overlaySlides = document.querySelectorAll('.overlay__slide');
+            const workspace = document.getElementById('workspace');
+
+            // --- Initialization ---
+            function init() {
+                setupDimensions();
+                resizeCanvas();
+                grid = createGrid(gridWidth, gridHeight);
+                buffer = createGrid(gridWidth, gridHeight);
+                drawGrid();
+                setupEventListeners();
+                updateSpeedLabel();
+                showOverlaySlide(1); // Show the first slide initially
+            }
+
+            // Determine grid size based on screen width
+            function setupDimensions() {
+                if (window.innerWidth < 768) {
+                    gridWidth = MOBILE_COLS;
+                    gridHeight = MOBILE_ROWS;
+                    cellSize = CELL_SIZE_MOBILE;
+                } else {
+                    gridWidth = DESKTOP_COLS;
+                    gridHeight = DESKTOP_ROWS;
+                    cellSize = CELL_SIZE_DESKTOP;
+                }
+            }
+
+            // Set canvas size based on grid dimensions
+            function resizeCanvas() {
+                canvas.width = gridWidth * (cellSize + GRID_GAP) + GRID_GAP;
+                canvas.height = gridHeight * (cellSize + GRID_GAP) + GRID_GAP;
+                // Adjust container or body if needed to ensure visibility
+                // Example: workspace.style.maxWidth = `${canvas.width + 200}px`; // Add control width
+            }
+
+            // Create an empty 2D array
+            function createGrid(cols, rows) {
+                const arr = new Array(rows);
+                for (let i = 0; i < rows; i++) {
+                    arr[i] = new Array(cols).fill(0);
+                }
+                return arr;
+            }
+
+            // --- Drawing ---
+            function drawGrid() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = COLOR_GRID;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                for (let row = 0; row < gridHeight; row++) {
+                    for (let col = 0; col < gridWidth; col++) {
+                        ctx.fillStyle = grid[row][col] ? COLOR_ALIVE : COLOR_DEAD;
+                        const x = col * (cellSize + GRID_GAP) + GRID_GAP;
+                        const y = row * (cellSize + GRID_GAP) + GRID_GAP;
+                        ctx.fillRect(x, y, cellSize, cellSize);
+                    }
+                }
+            }
+
+            // --- Game Logic ---
+            function updateGrid() {
+                // Compute next state in the buffer
+                for (let row = 0; row < gridHeight; row++) {
+                    for (let col = 0; col < gridWidth; col++) {
+                        const neighbors = countNeighbors(row, col);
+                        const isAlive = grid[row][col] === 1;
+
+                        // Apply Conway's rules
+                        if (isAlive && (neighbors === 2 || neighbors === 3)) {
+                            buffer[row][col] = 1; // Survives
+                        } else if (!isAlive && neighbors === 3) {
+                            buffer[row][col] = 1; // Birth
+                        } else {
+                            buffer[row][col] = 0; // Death or stays dead
+                        }
+                    }
+                }
+
+                // Swap grid and buffer
+                const temp = grid;
+                grid = buffer;
+                buffer = temp;
+            }
+
+            // Count live neighbors for a given cell (no wrapping)
+            function countNeighbors(row, col) {
+                let count = 0;
+                for (let i = -1; i <= 1; i++) {
+                    for (let j = -1; j <= 1; j++) {
+                        if (i === 0 && j === 0) continue; // Skip self
+
+                        const neighborRow = row + i;
+                        const neighborCol = col + j;
+
+                        // Check boundaries
+                        if (neighborRow >= 0 && neighborRow < gridHeight &&
+                            neighborCol >= 0 && neighborCol < gridWidth) {
+                            count += grid[neighborRow][neighborCol];
+                        }
+                    }
+                }
+                return count;
+            }
+
+            // --- Animation Loop ---
+            function gameLoop(timestamp) {
+                if (!isRunning) return;
+
+                const elapsed = timestamp - lastFrameTime;
+                const interval = 1000 / currentSpeed; // ms per frame
+
+                if (elapsed >= interval) {
+                    lastFrameTime = timestamp - (elapsed % interval); // Adjust for smoother timing
+                    updateGrid();
+                    drawGrid();
+                }
+
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+
+            // --- Control Functions ---
+            function startGame() {
+                if (isRunning) return;
+                isRunning = true;
+                startStopBtn.textContent = 'Stop';
+                startStopBtn.classList.remove('controls__button--start');
+                startStopBtn.classList.add('controls__button--stop');
+                lastFrameTime = performance.now(); // Reset timer
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+
+            function stopGame() {
+                if (!isRunning) return;
+                isRunning = false;
+                startStopBtn.textContent = 'Resume'; // Change to Resume after first start
+                startStopBtn.classList.remove('controls__button--stop');
+                startStopBtn.classList.add('controls__button--start'); // Use start style for resume too
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+            }
+
+            function clearGrid() {
+                if (isRunning) stopGame(); // Stop simulation before clearing
+                startStopBtn.textContent = 'Start'; // Reset button text
+                grid = createGrid(gridWidth, gridHeight);
+                buffer = createGrid(gridWidth, gridHeight); // Also clear buffer
+                drawGrid();
+            }
+
+            function randomizeGrid() {
+                if (isRunning) stopGame(); // Stop simulation
+                 startStopBtn.textContent = 'Start'; // Reset button text
+                for (let row = 0; row < gridHeight; row++) {
+                    for (let col = 0; col < gridWidth; col++) {
+                        grid[row][col] = Math.random() < RANDOM_DENSITY ? 1 : 0;
+                    }
+                }
+                drawGrid();
+            }
+
+            function handleSpeedChange() {
+                currentSpeed = parseInt(speedSlider.value, 10);
+                updateSpeedLabel();
+                // If running, the loop will automatically pick up the new speed
+            }
+
+             function updateSpeedLabel() {
+                speedValueSpan.textContent = currentSpeed;
+             }
+
+            function handleShapeSelection() {
+                 selectedShape = shapeSelect.value;
+                 if (selectedShape) {
+                    // Optionally provide visual feedback that shape mode is active
+                    canvas.style.cursor = 'copy';
+                 } else {
+                     canvas.style.cursor = 'pointer';
+                 }
+            }
+
+            // Stamp a predefined shape onto the grid
+            function stampShape(startRow, startCol) {
+                if (!selectedShape || !shapes[selectedShape]) return;
+                if (isRunning) stopGame(); // Stop simulation when stamping
+
+                const pattern = shapes[selectedShape];
+                pattern.forEach(([rowOffset, colOffset]) => {
+                    const row = startRow + rowOffset;
+                    const col = startCol + colOffset;
+                    // Check boundaries before stamping
+                    if (row >= 0 && row < gridHeight && col >= 0 && col < gridWidth) {
+                        grid[row][col] = 1; // Set cell to alive
+                    }
+                });
+                drawGrid();
+                // Reset selection after stamping to avoid accidental multi-stamps? Maybe not.
+                // shapeSelect.value = "";
+                // selectedShape = "";
+                // canvas.style.cursor = 'pointer';
+            }
+
+
+            // --- Event Listeners ---
+            function setupEventListeners() {
+                // Overlay Navigation
+                overlayNextBtn.addEventListener('click', handleOverlayNext);
+
+                // Canvas Interaction
+                canvas.addEventListener('click', handleCanvasClick);
+
+                // Control Buttons
+                startStopBtn.addEventListener('click', () => {
+                    if (isRunning) {
+                        stopGame();
+                    } else {
+                        startGame();
+                    }
+                });
+                clearBtn.addEventListener('click', clearGrid);
+                randomBtn.addEventListener('click', randomizeGrid);
+
+                // Inputs
+                shapeSelect.addEventListener('change', handleShapeSelection);
+                speedSlider.addEventListener('input', handleSpeedChange);
+            }
+
+            // Handle clicks on the canvas grid
+            function handleCanvasClick(event) {
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+
+                // Calculate grid coordinates from click coordinates
+                const col = Math.floor(x / (cellSize + GRID_GAP));
+                const row = Math.floor(y / (cellSize + GRID_GAP));
+
+                // Ensure click is within grid bounds
+                if (row >= 0 && row < gridHeight && col >= 0 && col < gridWidth) {
+                    if (selectedShape) {
+                        stampShape(row, col);
+                    } else {
+                         if (isRunning) stopGame(); // Stop simulation if user manually edits
+                         startStopBtn.textContent = 'Start'; // Reset button text
+
+                        // Toggle cell state
+                        grid[row][col] = grid[row][col] ? 0 : 1;
+                        drawGrid(); // Redraw after toggle
+                    }
+                }
+            }
+
+             // --- Overlay Logic ---
+            function showOverlaySlide(slideNumber) {
+                 overlaySlides.forEach(slide => {
+                     slide.classList.remove('overlay__slide--active');
+                     if (parseInt(slide.dataset.slide, 10) === slideNumber) {
+                         slide.classList.add('overlay__slide--active');
+                     }
+                 });
+
+                 if (slideNumber === totalOverlaySlides) {
+                     overlayNextBtn.textContent = 'Play!';
+                 } else {
+                     overlayNextBtn.textContent = 'Next';
+                 }
+                 currentOverlaySlide = slideNumber;
+            }
+
+            function handleOverlayNext() {
+                 if (currentOverlaySlide < totalOverlaySlides) {
+                     showOverlaySlide(currentOverlaySlide + 1);
+                 } else {
+                     closeOverlay();
+                 }
+            }
+
+            function closeOverlay() {
+                introOverlay.classList.add('overlay--hidden');
+                workspace.classList.add('workspace--visible'); // Make workspace visible
+                document.body.style.overflow = 'auto'; // Restore scrolling if needed
+            }
+
+
+            // --- Run ---
+            init();
+        });
+    </script>
+
+</body>
+</html>
